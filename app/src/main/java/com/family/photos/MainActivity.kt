@@ -392,44 +392,55 @@ class MainActivity : AppCompatActivity() {
             base.toList()
         }
 
-        val adapter = android.widget.ArrayAdapter<String>(this, android.R.layout.select_dialog_item)
-        val icons = mutableListOf<Int>()
-        items.forEach { (label, icon, _) ->
-            adapter.add(label)
-            icons.add(icon)
+        val labels = items.map { it.first }.toMutableList()
+        val icons = items.map { it.second }
+
+        val listAdapter = object : android.widget.BaseAdapter() {
+            override fun getCount() = labels.size
+            override fun getItem(position: Int) = labels[position]
+            override fun getItemId(position: Int) = position.toLong()
+            override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup?): android.view.View {
+                val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
+                val tv = view.findViewById<TextView>(android.R.id.text1)
+                tv.text = labels[position]
+                if (position < icons.size) {
+                    tv.setCompoundDrawablesWithIntrinsicBounds(icons[position], 0, 0, 0)
+                    tv.compoundDrawablePadding = 24
+                }
+                return view
+            }
+        }
+
+        val listView = android.widget.ListView(this).apply {
+            adapter = listAdapter
+            dividerHeight = 0
         }
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("家庭组管理")
-            .setAdapter(adapter) { _, which ->
-                val action = items[which].third
-                if (familyId.isEmpty()) {
-                    if (action == 0) showCreateFamilyDialog() else showJoinFamilyDialog()
-                } else {
-                    when (action) {
-                        0 -> showFamilyInfo()
-                        1 -> showInviteCode()
-                        2 -> showCreateFamilyDialog()
-                        3 -> showJoinFamilyDialog()
-                        4 -> showDeleteFamilyDialog()
-                        5 -> showMemberManage()
-                        6 -> showEditFamilyInfo()
-                    }
-                }
-            }.create()
+            .setView(listView)
+            .setNegativeButton("关闭", null)
+            .create()
 
-        dialog.show()
-        dialog.listView?.post {
-            val lv = dialog.listView ?: return@post
-            for (i in 0 until lv.childCount) {
-                val view = lv.getChildAt(i)
-                val tv = view?.findViewById<TextView>(android.R.id.text1)
-                if (i < icons.size) {
-                    tv?.setCompoundDrawablesWithIntrinsicBounds(icons[i], 0, 0, 0)
-                    tv?.compoundDrawablePadding = 24
+        listView.setOnItemClickListener { _, _, which, _ ->
+            val action = items[which].third
+            if (familyId.isEmpty()) {
+                if (action == 0) showCreateFamilyDialog() else showJoinFamilyDialog()
+            } else {
+                when (action) {
+                    0 -> showFamilyInfo()
+                    1 -> showInviteCode()
+                    2 -> showCreateFamilyDialog()
+                    3 -> showJoinFamilyDialog()
+                    4 -> showDeleteFamilyDialog()
+                    5 -> showMemberManage()
+                    6 -> showEditFamilyInfo()
                 }
             }
         }
+
+        dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+        dialog.show()
     }
 
     private fun showDeleteFamilyDialog() {
@@ -550,21 +561,43 @@ class MainActivity : AppCompatActivity() {
                 val badge = if (id == uid) "（我）" else ""
                 val role = if (id == group["creator_id"]) " [管理员]" else ""
                 "$name$badge$role"
-            }.toMutableList()
+            }
+
+            val listAdapter = object : android.widget.BaseAdapter() {
+                override fun getCount() = items.size
+                override fun getItem(position: Int) = items[position]
+                override fun getItemId(position: Int) = position.toLong()
+                override fun getView(position: Int, convertView: android.view.View?, parent: android.view.ViewGroup?): android.view.View {
+                    val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
+                    val tv = view.findViewById<TextView>(android.R.id.text1)
+                    tv.text = items[position]
+                    tv.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_myplaces, 0, 0, 0)
+                    tv.compoundDrawablePadding = 24
+                    return view
+                }
+            }
+
+            val listView = android.widget.ListView(this).apply {
+                adapter = listAdapter
+                dividerHeight = 0
+            }
 
             val dialog = AlertDialog.Builder(this)
                 .setTitle("成员管理（${items.size}人）")
-                .setItems(items.toTypedArray()) { _, which ->
-                    val memberId = memberIds.getOrNull(which) ?: return@setItems
-                    val memberName = memberNames.getOrNull(which) ?: return@setItems
-                    if (memberId == group["creator_id"]) {
-                        Toast.makeText(this, "不能操作管理员", Toast.LENGTH_SHORT).show()
-                        return@setItems
-                    }
-                    showMemberActions(memberId, memberName)
-                }
+                .setView(listView)
                 .setNegativeButton("关闭", null)
                 .create()
+
+            listView.setOnItemClickListener { _, _, which, _ ->
+                val memberId = memberIds.getOrNull(which) ?: return@setOnItemClickListener
+                val memberName = memberNames.getOrNull(which) ?: return@setOnItemClickListener
+                if (memberId == group["creator_id"]) {
+                    Toast.makeText(this, "不能操作管理员", Toast.LENGTH_SHORT).show()
+                    return@setOnItemClickListener
+                }
+                showMemberActions(memberId, memberName)
+            }
+
             dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
             dialog.show()
         }

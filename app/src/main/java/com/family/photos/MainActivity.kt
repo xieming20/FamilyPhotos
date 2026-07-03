@@ -230,7 +230,6 @@ class MainActivity : AppCompatActivity() {
             return
         }
         binding.btnCheckUpdate.isEnabled = false
-        binding.btnCheckUpdate.text = "下载中..."
         lifecycleScope.launch {
             try {
                 val apkFile = withContext(Dispatchers.IO) {
@@ -240,10 +239,34 @@ class MainActivity : AppCompatActivity() {
                         .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
                         .build().newCall(request).execute()
                     if (!response.isSuccessful) throw Exception("下载失败")
+                    val body = response.body ?: throw Exception("下载失败")
+                    val contentLength = body.contentLength()
                     val file = File(cacheDir, "时光相册-update.apk")
-                    file.outputStream().use { out -> response.body?.byteStream()?.copyTo(out) }
+                    var downloaded = 0L
+                    var lastProgress = -1
+                    file.outputStream().use { out ->
+                        body.byteStream().use { input ->
+                            val buffer = ByteArray(8192)
+                            var bytes = input.read(buffer)
+                            while (bytes != -1) {
+                                out.write(buffer, 0, bytes)
+                                downloaded += bytes
+                                if (contentLength > 0) {
+                                    val progress = (downloaded * 100 / contentLength).toInt()
+                                    if (progress != lastProgress) {
+                                        lastProgress = progress
+                                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            binding.btnCheckUpdate.text = "下载中 $progress%"
+                                        }
+                                    }
+                                }
+                                bytes = input.read(buffer)
+                            }
+                        }
+                    }
                     file
                 }
+                binding.btnCheckUpdate.text = "安装中..."
                 val uri = FileProvider.getUriForFile(
                     this@MainActivity, "${packageName}.fileprovider", apkFile
                 )
@@ -548,6 +571,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var memberManageDialog: AlertDialog? = null
+
     private fun showMemberManage() {
         currentFamilyGroup?.let { group ->
             @Suppress("UNCHECKED_CAST")
@@ -555,11 +580,12 @@ class MainActivity : AppCompatActivity() {
             @Suppress("UNCHECKED_CAST")
             val memberNames = (group["member_names"] as? List<String>) ?: emptyList()
             val uid = SupabaseUtil.currentUserId()
+            val creatorId = group["creator_id"]?.toString() ?: ""
 
             val items = memberNames.mapIndexed { i, name ->
                 val id = memberIds.getOrNull(i) ?: ""
                 val badge = if (id == uid) "（我）" else ""
-                val role = if (id == group["creator_id"]) " [管理员]" else ""
+                val role = if (id == creatorId) " [管理员]" else ""
                 "$name$badge$role"
             }
 
@@ -582,16 +608,18 @@ class MainActivity : AppCompatActivity() {
                 dividerHeight = 0
             }
 
+            memberManageDialog?.dismiss()
             val dialog = AlertDialog.Builder(this)
                 .setTitle("成员管理（${items.size}人）")
                 .setView(listView)
                 .setNegativeButton("关闭", null)
                 .create()
+            memberManageDialog = dialog
 
             listView.setOnItemClickListener { _, _, which, _ ->
                 val memberId = memberIds.getOrNull(which) ?: return@setOnItemClickListener
                 val memberName = memberNames.getOrNull(which) ?: return@setOnItemClickListener
-                if (memberId == group["creator_id"]) {
+                if (memberId == creatorId) {
                     Toast.makeText(this, "不能操作管理员", Toast.LENGTH_SHORT).show()
                     return@setOnItemClickListener
                 }
@@ -604,17 +632,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMemberActions(memberId: String, memberName: String) {
-        val options = arrayOf("修改昵称", "移除成员")
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("操作 - $memberName")
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> showEditMemberName(memberId, memberName)
-                    1 -> confirmRemoveMember(memberId, memberName)
-                }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(40, 20, 40, 0)
+        }
+        val btnEditName = com.google.android.material.button.MaterialButton(this).apply {
+            text = "修改昵称"
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.primary, null))
+            icon = resources.getDrawable(android.R.drawable.ic_menu_edit, null)
+            iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+            cornerRadius = 12
+            strokeColor = resources.getColorStateList(R.color.primary)
+            strokeWidth = 1
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                bottomMargin = 10
             }
+        }
+        val btnRemove = com.google.android.material.button.MaterialButton(this).apply {
+            text = "移除成员"
+            textSize = 15f
+            setTextColor(resources.getColor(R.color.accent, null))
+            icon = resources.getDrawable(android.R.drawable.ic_menu_delete, null)
+            iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+            cornerRadius = 12
+            strokeColor = resources.getColorStateList(R.color.accent)
+            strokeWidth = 1
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+        container.addView(btnEditName)
+        container.addView(btnRemove)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(memberName)
+            .setView(container)
             .setNegativeButton("取消", null)
             .create()
+
+        btnEditName.setOnClickListener {
+            dialog.dismiss()
+            showEditMemberName(memberId, memberName)
+        }
+        btnRemove.setOnClickListener {
+            dialog.dismiss()
+            confirmRemoveMember(memberId, memberName)
+        }
+
         dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
         dialog.show()
     }
@@ -632,6 +695,8 @@ class MainActivity : AppCompatActivity() {
                 try {
                     SupabaseUtil.updateMemberName(familyId, memberId, oldName, newName)
                     loadMyFamilyGroups()
+                    memberManageDialog?.dismiss()
+                    showMemberManage()
                     Toast.makeText(this@MainActivity, "昵称已修改", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(this@MainActivity, "修改失败：${e.message}", Toast.LENGTH_SHORT).show()
@@ -646,6 +711,8 @@ class MainActivity : AppCompatActivity() {
                 try {
                     SupabaseUtil.removeMember(familyId, memberId, memberName)
                     loadMyFamilyGroups()
+                    memberManageDialog?.dismiss()
+                    showMemberManage()
                     Toast.makeText(this@MainActivity, "已移除成员", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(this@MainActivity, "移除失败：${e.message}", Toast.LENGTH_SHORT).show()

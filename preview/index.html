@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭相册 - UI预览</title>
+    <link rel="stylesheet" href="preview.css">
+</head>
+<body>
+    <div class="preview-container">
+        <div class="screen-label">当前页面：<span id="currentScreenName">登录</span></div>
+        <div class="phone-frame">
+            <div class="status-bar">
+                <span class="time">9:41</span>
+                <div class="status-icons">
+                    <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="5" width="3" height="7" rx="0.5" fill="#1A1A2E"/><rect x="4.5" y="3" width="3" height="9" rx="0.5" fill="#1A1A2E"/><rect x="9" y="1" width="3" height="11" rx="0.5" fill="#1A1A2E"/><rect x="13.5" y="0" width="3" height="12" rx="0.5" fill="#1A1A2E" opacity="0.3"/></svg>
+                    <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2C5.5 2 3.2 3 1.5 4.7L0 3.2C2.1 1.1 4.9 0 8 0s5.9 1.1 8 3.2l-1.5 1.5C13.8 3 11.5 2 8 2z" fill="#1A1A2E"/><path d="M8 5.5c-1.7 0-3.2.7-4.3 1.8L2.2 5.8C3.7 4.3 5.7 3.5 8 3.5s4.3.8 5.8 2.3l-1.5 1.5C11.2 6.2 9.7 5.5 8 5.5z" fill="#1A1A2E"/><path d="M8 9c-.8 0-1.6.3-2.1.9L4.4 8.4C5.3 7.5 6.6 7 8 7s2.7.5 3.6 1.4l-1.5 1.5C9.6 9.3 8.8 9 8 9z" fill="#1A1A2E"/><circle cx="8" cy="11" r="1.2" fill="#1A1A2E"/></svg>
+                    <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="21" height="10" rx="2" stroke="#1A1A2E" stroke-width="1" fill="none"/><rect x="22" y="3.5" width="2" height="5" rx="1" fill="#1A1A2E" opacity="0.4"/><rect x="1.5" y="2.5" width="14" height="7" rx="1" fill="#1A1A2E"/></svg>
+                </div>
+            </div>
+
+            <!-- 登录页面 -->
+            <div id="screen-login" class="screen active">
+                <div class="login-container">
+                    <div class="app-icon">
+                        <svg width="56" height="56" viewBox="0 0 56 56">
+                            <circle cx="28" cy="28" r="28" fill="#3B7DD8"/>
+                            <rect x="14" y="16" width="28" height="24" rx="3" fill="none" stroke="#fff" stroke-width="2"/>
+                            <circle cx="24" cy="26" r="3.5" fill="#fff"/>
+                            <path d="M14 36l8-6 5 4 7-8 8 6v2a3 3 0 01-3 3H17a3 3 0 01-3-3v-1z" fill="#fff" opacity="0.8"/>
+                        </svg>
+                    </div>
+                    <h1 class="login-title">欢迎回来</h1>
+                    <p class="login-subtitle">登录您的家庭相册账号</p>
+
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 6L2 7"/></svg>
+                        </div>
+                        <input type="email" placeholder="邮箱地址" class="input-field" id="loginEmail">
+                    </div>
+
+                    <div class="input-group">
+                        <div class="input-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                        </div>
+                        <input type="password" placeholder="密码" class="input-field" id="loginPassword">
+                    </div>
+
+                    <div id="displayNameField" class="input-group" style="display:none">
+                        <div class="input-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <input type="text" placeholder="昵称" class="input-field" id="loginDisplayName">
+                    </div>
+
+                    <button class="btn-primary" id="btnLogin" onclick="handleLogin()">登 录</button>
+
+                    <a class="switch-mode" id="switchMode" onclick="toggleLoginMode()">还没有账号？点击注册</a>
+                </div>
+            </div>
+
+            <!-- 主页 -->
+            <div id="screen-main" class="screen">
+                <div class="toolbar">
+                    <span class="toolbar-title">家庭相册</span>
+                </div>
+                <div class="main-content">
+                    <div class="welcome-section">
+                        <h2 class="welcome-text" id="welcomeText">欢迎，小明</h2>
+                        <p class="family-info" id="familyInfo">家庭组：温馨一家（4人）</p>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="feature-card" onclick="showScreen('gallery')">
+                            <div class="feature-icon primary">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="feature-name">照片画廊</span>
+                            <span class="feature-desc">浏览家人分享的照片</span>
+                        </div>
+                        <div class="feature-card" onclick="showScreen('upload')">
+                            <div class="feature-icon accent">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#E8734A" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <span class="feature-name">上传照片</span>
+                            <span class="feature-desc">分享您的照片给家人</span>
+                        </div>
+                    </div>
+
+                    <div class="family-card" onclick="showFamilyDialog()">
+                        <div class="family-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2B5EA5" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        </div>
+                        <div class="family-card-text">
+                            <span class="family-card-title">家庭组管理</span>
+                            <span class="family-card-desc">创建家庭组、邀请家人加入</span>
+                        </div>
+                        <svg class="arrow-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B0B8C4" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+
+                    <button class="btn-logout" onclick="showScreen('login')">退出登录</button>
+                </div>
+            </div>
+
+            <!-- 照片画廊 -->
+            <div id="screen-gallery" class="screen">
+                <div class="toolbar">
+                    <svg class="back-btn" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" onclick="showScreen('main')"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+                    <span class="toolbar-title">照片画廊</span>
+                </div>
+                <div class="gallery-content">
+                    <div class="photo-grid">
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #a8d8ea, #e8f4f8);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">小明</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #ffeaa7, #fdcb6e);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E8734A" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">妈妈</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #dfe6e9, #b2bec3);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#636e72" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">爸爸</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #fab1a0, #e17055);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">小红</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #c7ecee, #7ed6df);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22a6b3" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">小明</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #f8c291, #e77f67);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">妈妈</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #e2d1f9, #c39bd3);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8e44ad" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">爸爸</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #b8e994, #78e08f);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#38ada9" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">小红</span>
+                        </div>
+                        <div class="photo-item" onclick="showScreen('detail')">
+                            <div class="photo-thumb" style="background: linear-gradient(135deg, #f3a683, #f19066);">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            </div>
+                            <span class="photo-uploader">小明</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="fab" onclick="showScreen('upload')">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </button>
+            </div>
+
+            <!-- 上传照片 -->
+            <div id="screen-upload" class="screen">
+                <div class="toolbar">
+                    <svg class="back-btn" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" onclick="showScreen('gallery')"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+                    <span class="toolbar-title">上传照片</span>
+                </div>
+                <div class="upload-content">
+                    <h3 class="section-title">选择照片</h3>
+                    <div class="select-btns">
+                        <button class="btn-outline primary-outline" onclick="simulateSelect()">选择单张</button>
+                        <button class="btn-outline accent-outline" onclick="simulateSelect()">选择多张</button>
+                    </div>
+                    <p class="selected-count" id="selectedCount">未选择照片</p>
+                    <div class="preview-card" id="previewCard" style="display:none">
+                        <div class="preview-image" id="previewImage"></div>
+                    </div>
+                    <div class="input-group" style="margin-top:14px">
+                        <textarea class="textarea-field" placeholder="照片描述（可选）" rows="3"></textarea>
+                    </div>
+                    <button class="btn-primary" style="margin-top:16px" onclick="simulateUpload()">开始上传</button>
+                    <div class="upload-progress" id="uploadProgress" style="display:none">
+                        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                        <span class="progress-text" id="progressText">正在上传...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 照片详情 -->
+            <div id="screen-detail" class="screen">
+                <div class="toolbar">
+                    <svg class="back-btn" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" onclick="showScreen('gallery')"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+                    <span class="toolbar-title">照片详情</span>
+                </div>
+                <div class="detail-content">
+                    <div class="detail-image-card">
+                        <div class="detail-image" style="background: linear-gradient(135deg, #a8d8ea, #e8f4f8);">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="1.2" opacity="0.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        </div>
+                    </div>
+                    <div class="detail-info-card">
+                        <div class="detail-row">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span class="detail-label">上传者：小明</span>
+                        </div>
+                        <div class="detail-row">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span class="detail-label-secondary">上传时间：2026年7月2日 14:30</span>
+                        </div>
+                        <div class="detail-divider"></div>
+                        <p class="detail-description">去年全家去海边玩的照片，那天天气特别好，大家都很开心！</p>
+                    </div>
+                </div>
+                <div class="detail-actions">
+                    <button class="action-btn primary-action" onclick="simulateDownload()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        <span>下载</span>
+                    </button>
+                    <button class="action-btn accent-action" onclick="simulateShare()">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        <span>分享</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 家庭组弹窗 -->
+            <div id="dialog-family" class="dialog-overlay" style="display:none">
+                <div class="dialog">
+                    <h3 class="dialog-title">家庭组管理</h3>
+                    <div class="dialog-options">
+                        <div class="dialog-option" onclick="showCreateFamily()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>创建家庭组</span>
+                        </div>
+                        <div class="dialog-option" onclick="showJoinFamily()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                            <span>加入家庭组</span>
+                        </div>
+                        <div class="dialog-option" onclick="showFamilyInfo()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span>查看家庭信息</span>
+                        </div>
+                        <div class="dialog-option" onclick="showInviteCode()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B7DD8" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                            <span>邀请家人加入</span>
+                        </div>
+                    </div>
+                    <button class="dialog-cancel" onclick="hideDialog()">取消</button>
+                </div>
+            </div>
+
+            <!-- 创建家庭组弹窗 -->
+            <div id="dialog-create-family" class="dialog-overlay" style="display:none">
+                <div class="dialog">
+                    <h3 class="dialog-title">创建家庭组</h3>
+                    <div class="input-group">
+                        <input type="text" placeholder="请输入家庭组名称" class="input-field" id="familyNameInput">
+                    </div>
+                    <div class="dialog-btns">
+                        <button class="dialog-cancel" onclick="hideDialog()">取消</button>
+                        <button class="btn-primary" style="flex:1" onclick="createFamily()">创建</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 加入家庭组弹窗 -->
+            <div id="dialog-join-family" class="dialog-overlay" style="display:none">
+                <div class="dialog">
+                    <h3 class="dialog-title">加入家庭组</h3>
+                    <div class="input-group">
+                        <input type="text" placeholder="请输入6位邀请码" class="input-field" id="inviteCodeInput" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:20px;font-weight:600">
+                    </div>
+                    <div class="dialog-btns">
+                        <button class="dialog-cancel" onclick="hideDialog()">取消</button>
+                        <button class="btn-primary" style="flex:1" onclick="joinFamily()">加入</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 家庭信息弹窗 -->
+            <div id="dialog-family-info" class="dialog-overlay" style="display:none">
+                <div class="dialog">
+                    <h3 class="dialog-title">家庭组信息</h3>
+                    <div class="family-info-content">
+                        <div class="info-row"><span class="info-label">家庭组名称</span><span class="info-value">温馨一家</span></div>
+                        <div class="info-row"><span class="info-label">创建者</span><span class="info-value">小明</span></div>
+                        <div class="info-row"><span class="info-label">成员</span><span class="info-value">小明、妈妈、爸爸、小红</span></div>
+                        <div class="info-row"><span class="info-label">邀请码</span><span class="info-value invite-code">A3K7M9</span></div>
+                    </div>
+                    <button class="btn-primary" onclick="hideDialog()">确定</button>
+                </div>
+            </div>
+
+            <!-- 邀请码弹窗 -->
+            <div id="dialog-invite" class="dialog-overlay" style="display:none">
+                <div class="dialog">
+                    <h3 class="dialog-title">邀请家人</h3>
+                    <p class="invite-hint">将以下邀请码分享给家人：</p>
+                    <div class="invite-code-display">A3K7M9</div>
+                    <p class="invite-hint">家人在App中输入邀请码即可加入</p>
+                    <button class="btn-primary" onclick="copyInviteCode()">复制邀请码</button>
+                    <button class="dialog-cancel" onclick="hideDialog()">关闭</button>
+                </div>
+            </div>
+
+            <!-- Toast -->
+            <div id="toast" class="toast" style="display:none"></div>
+        </div>
+
+        <div class="nav-bar">
+            <button class="nav-btn active" data-screen="login" onclick="showScreen('login')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                <span>登录</span>
+            </button>
+            <button class="nav-btn" data-screen="main" onclick="showScreen('main')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                <span>主页</span>
+            </button>
+            <button class="nav-btn" data-screen="gallery" onclick="showScreen('gallery')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span>画廊</span>
+            </button>
+            <button class="nav-btn" data-screen="upload" onclick="showScreen('upload')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>上传</span>
+            </button>
+            <button class="nav-btn" data-screen="detail" onclick="showScreen('detail')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>详情</span>
+            </button>
+        </div>
+    </div>
+
+    <script src="preview.js"></script>
+</body>
+</html>

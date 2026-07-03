@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">时光相册</string>
+    <string name="login_title">欢迎回来</string>
+    <string name="login_subtitle">登录您的时光相册账号</string>
+    <string name="register_title">创建账号</string>
+    <string name="register_subtitle">注册后即可与家人分享照片</string>
+    <string name="hint_email">邮箱地址</string>
+    <string name="hint_password">密码</string>
+    <string name="hint_display_name">昵称</string>
+    <string name="btn_login">登 录</string>
+    <string name="btn_register">注 册</string>
+    <string name="switch_to_register">还没有账号？点击注册</string>
+    <string name="switch_to_login">已有账号？点击登录</string>
+    <string name="gallery_title">照片画廊</string>
+    <string name="upload_title">上传照片</string>
+    <string name="detail_title">照片详情</string>
+    <string name="select_single">选择单张</string>
+    <string name="select_multi">选择多张</string>
+    <string name="btn_upload">开始上传</string>
+    <string name="empty_gallery">还没有照片\n点击右下角按钮上传第一张照片吧</string>
+    <string name="hint_description">照片描述（可选）</string>
+    <string name="download_success">照片已保存到相册</string>
+    <string name="logout">退出登录</string>
+    <string name="logout_confirm">确定要退出当前账号吗？</string>
+</resources>

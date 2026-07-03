@@ -310,9 +310,10 @@ object SupabaseUtil {
 
     suspend fun inviteCodeLogin(code: String, displayName: String) {
         withContext(Dispatchers.IO) {
-            val findRequest = buildRequest("rest/v1/family_groups?invite_code=eq.$code&limit=1")
+            val findRequest = buildPublicRequest("rest/v1/family_groups?invite_code=eq.$code&limit=1")
                 .get().build()
             val findResponse = client.newCall(findRequest).execute()
+            if (!findResponse.isSuccessful) throw Exception("查询邀请码失败（HTTP ${findResponse.code}）")
             val findBody = findResponse.body?.string() ?: throw Exception("查询失败")
             @Suppress("UNCHECKED_CAST")
             val groups = gson.fromJson(findBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>

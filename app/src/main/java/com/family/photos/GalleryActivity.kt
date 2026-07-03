@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -37,18 +38,47 @@ class GalleryActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        photoAdapter = PhotoAdapter { photo ->
-            val pos = photos.indexOf(photo)
-            startActivity(Intent(this, PhotoDetailActivity::class.java).apply {
-                putExtra("photoIndex", if (pos >= 0) pos else 0)
-                putExtra("photoCount", photos.size)
-            })
-            overridePendingTransition(R.anim.slide_in_bottom, R.anim.fade_out)
-            PhotoStore.photos = ArrayList(photos)
-        }
+        photoAdapter = PhotoAdapter(
+            onClick = { photo ->
+                val pos = photos.indexOf(photo)
+                startActivity(Intent(this, PhotoDetailActivity::class.java).apply {
+                    putExtra("photoIndex", if (pos >= 0) pos else 0)
+                    putExtra("photoCount", photos.size)
+                })
+                overridePendingTransition(R.anim.slide_in_bottom, R.anim.fade_out)
+                PhotoStore.photos = ArrayList(photos)
+            },
+            onLongClick = { photo -> showDeleteDialog(photo) }
+        )
         binding.rvPhotos.apply {
             layoutManager = GridLayoutManager(this@GalleryActivity, 3)
             adapter = photoAdapter
+        }
+    }
+
+    private fun showDeleteDialog(photo: Map<String, Any?>) {
+        val uploader = photo["uploader_name"]?.toString() ?: ""
+        val time = (photo["upload_time"] as? Number)?.toLong() ?: 0L
+        val timeStr = java.text.SimpleDateFormat("yyyy/MM/dd HH:mm", java.util.Locale.CHINA).format(java.util.Date(time))
+        AlertDialog.Builder(this)
+            .setTitle("删除照片")
+            .setMessage("确定删除这张照片吗？\n上传者：$uploader\n时间：$timeStr\n\n删除后无法恢复")
+            .setPositiveButton("删除") { _, _ -> deletePhoto(photo) }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun deletePhoto(photo: Map<String, Any?>) {
+        val photoId = photo["id"].toString()
+        val fileUrl = photo["file_url"]?.toString() ?: ""
+        lifecycleScope.launch {
+            try {
+                SupabaseUtil.deletePhoto(photoId, fileUrl)
+                Toast.makeText(this@GalleryActivity, "已删除", Toast.LENGTH_SHORT).show()
+                loadPhotos()
+            } catch (e: Exception) {
+                Toast.makeText(this@GalleryActivity, "删除失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

@@ -391,6 +391,22 @@ object SupabaseUtil {
         }
     }
 
+    suspend fun deletePhoto(photoId: String, fileUrl: String) {
+        withContext(Dispatchers.IO) {
+            val fileName = fileUrl.substringAfterLast("/")
+            try {
+                val storageRequest = buildRequest("storage/v1/object/photos/$fileName")
+                    .delete().build()
+                client.newCall(storageRequest).execute()
+            } catch (_: Exception) {}
+
+            val dbRequest = buildRequest("rest/v1/photos?id=eq.$photoId")
+                .delete().build()
+            val response = client.newCall(dbRequest).execute()
+            if (!response.isSuccessful) throw Exception("删除失败（HTTP ${response.code}）")
+        }
+    }
+
     suspend fun getExistingPhotoUrls(familyId: String): Set<String> {
         return withContext(Dispatchers.IO) {
             try {

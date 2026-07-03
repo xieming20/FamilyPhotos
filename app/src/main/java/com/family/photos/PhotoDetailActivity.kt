@@ -10,13 +10,14 @@ import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.family.photos.databinding.ActivityPhotoDetailBinding
+import com.family.photos.util.SupabaseUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +31,7 @@ class PhotoDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPhotoDetailBinding
     private var currentIndex: Int = 0
+    private var photoCount: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,10 +39,10 @@ class PhotoDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         currentIndex = intent.getIntExtra("photoIndex", 0)
-        val count = intent.getIntExtra("photoCount", 1)
+        photoCount = intent.getIntExtra("photoCount", 1)
 
         binding.toolbar.setNavigationOnClickListener { finish(); overridePendingTransition(R.anim.fade_in, R.anim.slide_out_bottom) }
-        updateTitle(currentIndex, count)
+        updateTitle(currentIndex, photoCount)
 
         val adapter = PhotoPagerAdapter()
         binding.viewPager.adapter = adapter
@@ -48,12 +50,13 @@ class PhotoDetailActivity : AppCompatActivity() {
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentIndex = position
-                updateTitle(position, count)
+                updateTitle(position, PhotoStore.photos.size)
             }
         })
 
         binding.fabDownload.setOnClickListener { downloadCurrentPhoto() }
         binding.fabShare.setOnClickListener { shareCurrentPhoto() }
+        binding.fabDelete.setOnClickListener { showDeleteDialog() }
     }
 
     private fun updateTitle(position: Int, count: Int) {
@@ -62,6 +65,43 @@ class PhotoDetailActivity : AppCompatActivity() {
 
     private fun getCurrentPhoto(): Map<String, Any?>? {
         return PhotoStore.photos.getOrNull(currentIndex)
+    }
+
+    private fun showDeleteDialog() {
+        val photo = getCurrentPhoto() ?: return
+        val uploader = photo["uploader_name"]?.toString() ?: ""
+        val time = (photo["upload_time"] as? Number)?.toLong() ?: 0L
+        val timeStr = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.CHINA).format(Date(time))
+        AlertDialog.Builder(this)
+            .setTitle("删除照片")
+            .setMessage("确定删除这张照片吗？\n上传者：$uploader\n时间：$timeStr\n\n删除后无法恢复")
+            .setPositiveButton("删除") { _, _ -> deleteCurrentPhoto() }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun deleteCurrentPhoto() {
+        val photo = getCurrentPhoto() ?: return
+        val photoId = photo["id"].toString()
+        val fileUrl = photo["file_url"]?.toString() ?: ""
+        lifecycleScope.launch {
+            try {
+                SupabaseUtil.deletePhoto(photoId, fileUrl)
+                PhotoStore.photos.removeAt(currentIndex)
+                if (PhotoStore.photos.isEmpty()) {
+                    Toast.makeText(this@PhotoDetailActivity, "已删除，没有更多照片", Toast.LENGTH_SHORT).show()
+                    finish(); overridePendingTransition(R.anim.fade_in, R.anim.slide_out_bottom)
+                } else {
+                    Toast.makeText(this@PhotoDetailActivity, "已删除", Toast.LENGTH_SHORT).show()
+                    binding.viewPager.adapter?.notifyDataSetChanged()
+                    photoCount = PhotoStore.photos.size
+                    if (currentIndex >= photoCount) currentIndex = photoCount - 1
+                    updateTitle(currentIndex, photoCount)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@PhotoDetailActivity, "删除失败：${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun downloadCurrentPhoto() {
@@ -149,9 +189,11 @@ class PhotoDetailActivity : AppCompatActivity() {
                     append("\n")
                     append(desc)
                 }
+                append("\n双指缩放 · 双击放大")
             }
 
             iv.setImageResource(android.R.drawable.ic_menu_gallery)
+            iv.resetScale()
             if (url.isNotEmpty()) {
                 lifecycleScope.launch {
                     try {

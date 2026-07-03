@@ -147,6 +147,11 @@ class TouchImageView @JvmOverloads constructor(
         return 0f
     }
 
+    fun resetScale() {
+        saveScale = 1f
+        requestLayout()
+    }
+
     companion object {
         private const val NONE = 0
         private const val DRAG = 1

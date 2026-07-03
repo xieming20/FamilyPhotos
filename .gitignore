@@ -12,4 +12,5 @@ local.properties
 .codeartsdoer/
 .arts/
 .merkle-snapshot.json
-~/release.jks
+release.jks
+app/release.jks

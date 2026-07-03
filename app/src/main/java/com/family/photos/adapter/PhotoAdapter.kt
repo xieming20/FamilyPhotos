@@ -18,7 +18,8 @@ import kotlinx.coroutines.withContext
 import java.net.URL
 
 class PhotoAdapter(
-    private val onClick: (Map<String, Any?>) -> Unit
+    private val onClick: (Map<String, Any?>) -> Unit,
+    private val onLongClick: (Map<String, Any?>) -> Unit = {}
 ) : ListAdapter<Map<String, Any?>, PhotoAdapter.VH>(Diff) {
 
     private val cache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 8).toInt()) {
@@ -85,6 +86,7 @@ class PhotoAdapter(
                 }
             }
             b.root.setOnClickListener { onClick(photo) }
+            b.root.setOnLongClickListener { onLongClick(photo); true }
         }
     }
 

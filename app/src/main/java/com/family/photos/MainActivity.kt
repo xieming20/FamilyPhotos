@@ -637,11 +637,12 @@ class MainActivity : AppCompatActivity() {
             setPadding(40, 20, 40, 0)
         }
         val btnEditName = com.google.android.material.button.MaterialButton(this).apply {
-            text = "修改昵称"
+            text = "  修改昵称"
             textSize = 15f
             setTextColor(resources.getColor(R.color.primary, null))
-            icon = resources.getDrawable(android.R.drawable.ic_menu_edit, null)
+            setIconResource(android.R.drawable.ic_menu_edit)
             iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+            iconSize = 36
             cornerRadius = 12
             strokeColor = resources.getColorStateList(R.color.primary)
             strokeWidth = 1
@@ -650,11 +651,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
         val btnRemove = com.google.android.material.button.MaterialButton(this).apply {
-            text = "移除成员"
+            text = "  移除成员"
             textSize = 15f
             setTextColor(resources.getColor(R.color.accent, null))
-            icon = resources.getDrawable(android.R.drawable.ic_menu_delete, null)
+            setIconResource(android.R.drawable.ic_menu_delete)
             iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+            iconSize = 36
             cornerRadius = 12
             strokeColor = resources.getColorStateList(R.color.accent)
             strokeWidth = 1

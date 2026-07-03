@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.security.MessageDigest
 
 class UploadActivity : AppCompatActivity() {
 
@@ -97,24 +98,39 @@ class UploadActivity : AppCompatActivity() {
         val uris = selectedUris.toList()
         var success = 0
         var fail = 0
+        var skipped = 0
 
         lifecycleScope.launch {
+            binding.tvProgress.text = "正在检查重复照片…"
+            binding.tvProgress.visibility = View.VISIBLE
+            val existingUrls = SupabaseUtil.getExistingPhotoUrls(familyId)
+
             for ((i, uri) in uris.withIndex()) {
                 binding.tvProgress.text = "正在上传 ${i + 1}/${uris.size}"
-                binding.tvProgress.visibility = View.VISIBLE
                 try {
                     val file = copyUriToFile(uri) ?: throw Exception("读取失败")
+                    val md5 = md5OfFile(file)
+                    val expectedUrl = "https://plobrqfaqtcihzzakmbk.supabase.co/storage/v1/object/public/photos/photo_${md5}.jpg"
+                    if (md5.isNotEmpty() && existingUrls.contains(expectedUrl)) {
+                        skipped++
+                        continue
+                    }
                     val displayName = try {
                         SupabaseUtil.getUserProfile(SupabaseUtil.currentUserId())?.get("display_name")?.toString() ?: "用户"
                     } catch (_: Exception) { "用户" }
-                    SupabaseUtil.uploadPhoto(familyId, file, binding.etDescription.text.toString().trim(), SupabaseUtil.currentUserId(), displayName)
+                    SupabaseUtil.uploadPhoto(familyId, file, binding.etDescription.text.toString().trim(), SupabaseUtil.currentUserId(), displayName, md5)
                     success++
                 } catch (_: Exception) { fail++ }
             }
             binding.progressBar.visibility = View.GONE
             binding.tvProgress.visibility = View.GONE
             binding.btnUpload.isEnabled = true
-            Toast.makeText(this@UploadActivity, "上传完成：成功 $success 张，失败 $fail 张", Toast.LENGTH_LONG).show()
+            val msg = buildString {
+                append("上传完成：成功 $success 张")
+                if (fail > 0) append("，失败 $fail 张")
+                if (skipped > 0) append("，跳过重复 $skipped 张")
+            }
+            Toast.makeText(this@UploadActivity, msg, Toast.LENGTH_LONG).show()
             if (success > 0) { finish(); overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) }
         }
     }
@@ -127,6 +143,20 @@ class UploadActivity : AppCompatActivity() {
             }
             tempFile
         } catch (_: Exception) { null }
+    }
+
+    private fun md5OfFile(file: File): String {
+        return try {
+            val digest = MessageDigest.getInstance("MD5")
+            file.inputStream().use { stream ->
+                val buffer = ByteArray(8192)
+                var read: Int
+                while (stream.read(buffer).also { read = it } != -1) {
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        } catch (_: Exception) { "" }
     }
 
     class PhotoSelectAdapter(

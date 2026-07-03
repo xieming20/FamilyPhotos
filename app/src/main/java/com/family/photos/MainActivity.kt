@@ -820,6 +820,9 @@ class MainActivity : AppCompatActivity() {
             try {
                 val usage = SupabaseUtil.getStorageUsage()
                 val totalSize = (usage["total_size"] as? Long) ?: 0L
+                val availableSize = (usage["available_size"] as? Long) ?: 0L
+                val totalCapacity = (usage["total_capacity"] as? Long) ?: 0L
+                val usagePercent = (usage["usage_percent"] as? Int) ?: 0
                 val photoSize = (usage["photo_size"] as? Long) ?: 0L
                 val apkSize = (usage["apk_size"] as? Long) ?: 0L
                 val photoFileCount = (usage["photo_file_count"] as? Int) ?: 0
@@ -841,7 +844,8 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val rows = listOf(
-                    "存储总用量" to fmt(totalSize),
+                    "已用 / 总容量" to "${fmt(totalSize)} / ${fmt(totalCapacity)}（${usagePercent}%）",
+                    "剩余可用" to fmt(availableSize),
                     "照片文件" to "${fmt(photoSize)}（${photoFileCount}个文件，${photoRecordCount}条记录）",
                     "应用安装包" to "${fmt(apkSize)}（${apkCount}个）",
                     "家庭组" to "$familyCount 个",

@@ -365,9 +365,9 @@ object SupabaseUtil {
         }
     }
 
-    suspend fun uploadPhoto(familyId: String, file: File, description: String, uploaderId: String, uploaderName: String) {
+    suspend fun uploadPhoto(familyId: String, file: File, description: String, uploaderId: String, uploaderName: String, fileHash: String = "") {
         withContext(Dispatchers.IO) {
-            val fileName = "photo_${System.currentTimeMillis()}.jpg"
+            val fileName = if (fileHash.isNotEmpty()) "photo_${fileHash}.jpg" else "photo_${System.currentTimeMillis()}.jpg"
             val uploadRequest = buildRequest("storage/v1/object/photos/$fileName")
                 .post(file.readBytes().toRequestBody("image/jpeg".toMediaType()))
                 .build()
@@ -388,6 +388,20 @@ object SupabaseUtil {
                 .header("Prefer", "return=minimal")
                 .build()
             client.newCall(insertRequest).execute()
+        }
+    }
+
+    suspend fun getExistingPhotoUrls(familyId: String): Set<String> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = buildRequest("rest/v1/photos?family_id=eq.$familyId&select=file_url")
+                    .get().build()
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: return@withContext emptySet()
+                @Suppress("UNCHECKED_CAST")
+                val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+                list.mapNotNull { it["file_url"]?.toString() }.toSet()
+            } catch (_: Exception) { emptySet() }
         }
     }
 
@@ -615,8 +629,15 @@ object SupabaseUtil {
                 val familyCount = families.size
                 val memberCount = families.sumOf { (it["member_names"] as? List<*>)?.size ?: 0 }
 
+                val freeTierBytes = 1073741824L
+                val availableSize = maxOf(0L, freeTierBytes - totalSize)
+                val usagePercent = if (freeTierBytes > 0) (totalSize * 100 / freeTierBytes).toInt() else 0
+
                 mapOf(
                     "total_size" to totalSize,
+                    "available_size" to availableSize,
+                    "total_capacity" to freeTierBytes,
+                    "usage_percent" to usagePercent,
                     "photo_size" to (totalSize - apkSize),
                     "apk_size" to apkSize,
                     "photo_file_count" to photoCount,

@@ -371,9 +371,10 @@ object SupabaseUtil {
     suspend fun checkForUpdate(currentVersionCode: Int): Map<String, String>? {
         return withContext(Dispatchers.IO) {
             try {
-                val request = buildRequest("rest/v1/app_versions?order=created_at.desc&limit=1")
+                val request = buildPublicRequest("rest/v1/app_versions?order=created_at.desc&limit=1")
                     .get().build()
                 val response = client.newCall(request).execute()
+                if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
                 val body = response.body?.string() ?: return@withContext null
                 @Suppress("UNCHECKED_CAST")
                 val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
@@ -386,16 +387,17 @@ object SupabaseUtil {
                         "release_notes" to (latest["release_notes"]?.toString() ?: "")
                     )
                 } else null
-            } catch (_: Exception) { null }
+            } catch (e: Exception) { throw e }
         }
     }
 
     suspend fun getLatestVersionInfo(): Map<String, String>? {
         return withContext(Dispatchers.IO) {
             try {
-                val request = buildRequest("rest/v1/app_versions?order=created_at.desc&limit=1")
+                val request = buildPublicRequest("rest/v1/app_versions?order=created_at.desc&limit=1")
                     .get().build()
                 val response = client.newCall(request).execute()
+                if (!response.isSuccessful) throw Exception("HTTP ${response.code}")
                 val body = response.body?.string() ?: return@withContext null
                 @Suppress("UNCHECKED_CAST")
                 val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
@@ -405,9 +407,15 @@ object SupabaseUtil {
                     "download_url" to (latest["download_url"]?.toString() ?: ""),
                     "release_notes" to (latest["release_notes"]?.toString() ?: "")
                 )
-            } catch (_: Exception) { null }
+            } catch (e: Exception) { throw e }
         }
     }
+
+    private fun buildPublicRequest(path: String) = Request.Builder()
+        .url("$SUPABASE_URL/$path")
+        .header("apikey", SUPABASE_KEY)
+        .header("Authorization", "Bearer $SUPABASE_KEY")
+        .header("Content-Type", "application/json")
 
     private fun buildRequest(path: String) = Request.Builder()
         .url("$SUPABASE_URL/$path")

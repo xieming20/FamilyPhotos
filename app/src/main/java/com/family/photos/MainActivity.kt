@@ -184,10 +184,10 @@ class MainActivity : AppCompatActivity() {
                 if (update != null) {
                     showUpdateDialog(update)
                 } else {
-                    Toast.makeText(this@MainActivity, "当前已是最新版本", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "当前已是最新版本（v$versionCode）", Toast.LENGTH_SHORT).show()
                 }
-            } catch (_: Exception) {
-                Toast.makeText(this@MainActivity, "检查失败，请稍后重试", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "检查失败：${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.btnCheckUpdate.isEnabled = true
                 binding.btnCheckUpdate.text = versionLabel
@@ -269,8 +269,8 @@ class MainActivity : AppCompatActivity() {
                     putExtra(Intent.EXTRA_TEXT, shareText)
                 }
                 startActivity(Intent.createChooser(shareIntent, "分享应用给朋友"))
-            } catch (_: Exception) {
-                Toast.makeText(this@MainActivity, "获取下载链接失败，请稍后重试", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "获取下载链接失败：${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.btnShareApp.isEnabled = true
             }

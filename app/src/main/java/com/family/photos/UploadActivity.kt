@@ -115,7 +115,7 @@ class UploadActivity : AppCompatActivity() {
             binding.tvProgress.visibility = View.GONE
             binding.btnUpload.isEnabled = true
             Toast.makeText(this@UploadActivity, "上传完成：成功 $success 张，失败 $fail 张", Toast.LENGTH_LONG).show()
-            if (success > 0) finish()
+            if (success > 0) { finish(); overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) }
         }
     }
 

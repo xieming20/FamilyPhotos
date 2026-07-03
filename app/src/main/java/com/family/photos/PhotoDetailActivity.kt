@@ -39,7 +39,7 @@ class PhotoDetailActivity : AppCompatActivity() {
         currentIndex = intent.getIntExtra("photoIndex", 0)
         val count = intent.getIntExtra("photoCount", 1)
 
-        binding.toolbar.setNavigationOnClickListener { finish(); overridePendingTransition(R.anim.fade_out, R.anim.fade_in) }
+        binding.toolbar.setNavigationOnClickListener { finish(); overridePendingTransition(R.anim.fade_in, R.anim.slide_out_bottom) }
         updateTitle(currentIndex, count)
 
         val adapter = PhotoPagerAdapter()

@@ -43,7 +43,7 @@ class GalleryActivity : AppCompatActivity() {
                 putExtra("photoIndex", if (pos >= 0) pos else 0)
                 putExtra("photoCount", photos.size)
             })
-            overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+            overridePendingTransition(R.anim.slide_in_bottom, R.anim.fade_out)
             PhotoStore.photos = ArrayList(photos)
         }
         binding.rvPhotos.apply {

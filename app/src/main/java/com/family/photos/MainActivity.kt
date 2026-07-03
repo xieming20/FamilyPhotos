@@ -101,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         binding.btnCheckUpdate.setOnClickListener { checkForUpdateManual() }
         binding.btnCheckUpdate.text = versionLabel
         binding.btnShareApp.setOnClickListener { shareApp() }
+        binding.btnStorageUsage.setOnClickListener { showStorageUsage() }
     }
 
     private fun loadUserProfile() {
@@ -809,6 +810,86 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, LoginActivity::class.java))
             overridePendingTransition(R.anim.fade_in, R.anim.slide_out_right)
             finish()
+        }
+
+    }
+
+    private fun showStorageUsage() {
+        binding.btnStorageUsage.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                val usage = SupabaseUtil.getStorageUsage()
+                val totalSize = (usage["total_size"] as? Long) ?: 0L
+                val photoCount = (usage["photo_count"] as? Int) ?: 0
+                val familyCount = (usage["family_count"] as? Int) ?: 0
+                val memberCount = (usage["member_count"] as? Int) ?: 0
+                val versionCount = (usage["version_count"] as? Int) ?: 0
+
+                val sizeStr = when {
+                    totalSize >= 1073741824 -> "%.1f GB".format(totalSize / 1073741824.0)
+                    totalSize >= 1048576 -> "%.1f MB".format(totalSize / 1048576.0)
+                    totalSize >= 1024 -> "%.1f KB".format(totalSize / 1024.0)
+                    else -> "$totalSize B"
+                }
+
+                val container = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(48, 24, 48, 0)
+                }
+
+                val rows = listOf(
+                    "照片总大小" to sizeStr,
+                    "照片数量" to "$photoCount 张",
+                    "家庭组" to "$familyCount 个",
+                    "成员总数" to "$memberCount 人",
+                    "版本记录" to "$versionCount 条"
+                )
+
+                rows.forEach { (label, value) ->
+                    val row = LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        setPadding(0, 10, 0, 10)
+                    }
+                    val labelView = android.widget.TextView(this@MainActivity).apply {
+                        text = label
+                        setTextColor(resources.getColor(R.color.text_secondary, null))
+                        textSize = 14f
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    val valueView = android.widget.TextView(this@MainActivity).apply {
+                        text = value
+                        setTextColor(resources.getColor(R.color.text_primary, null))
+                        textSize = 15f
+                        setTypeface(null, android.graphics.Typeface.BOLD)
+                        gravity = android.view.Gravity.END
+                    }
+                    row.addView(labelView)
+                    row.addView(valueView)
+
+                    if (label != rows.last().first) {
+                        val divider = android.view.View(this@MainActivity).apply {
+                            setBackgroundColor(resources.getColor(R.color.divider, null))
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply { topMargin = 4 }
+                        }
+                        container.addView(row)
+                        container.addView(divider)
+                    } else {
+                        container.addView(row)
+                    }
+                }
+
+                val dialog = AlertDialog.Builder(this@MainActivity)
+                    .setTitle("服务器存储用量")
+                    .setView(container)
+                    .setPositiveButton("关闭", null)
+                    .create()
+                dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+                dialog.show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "查询失败：${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnStorageUsage.isEnabled = true
+            }
         }
     }
 }

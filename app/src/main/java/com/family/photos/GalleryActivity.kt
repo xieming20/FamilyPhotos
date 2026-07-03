@@ -27,7 +27,7 @@ class GalleryActivity : AppCompatActivity() {
         familyId = intent.getStringExtra("familyId") ?: ""
         if (familyId.isEmpty()) {
             Toast.makeText(this, "家庭组信息异常", Toast.LENGTH_SHORT).show()
-            finish()
+            finish(); overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             return
         }
 

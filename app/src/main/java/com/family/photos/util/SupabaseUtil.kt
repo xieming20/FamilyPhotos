@@ -564,4 +564,49 @@ object SupabaseUtil {
         }
         return (1..6).map { chars.random() }.joinToString("")
     }
+
+    suspend fun getStorageUsage(): Map<String, Any?> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = buildPublicRequest("rest/v1/photos?select=id,file_size,created_at,family_id")
+                    .get().build()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) throw Exception("查询失败（HTTP ${response.code}）")
+                val body = response.body?.string() ?: throw Exception("查询失败")
+                @Suppress("UNCHECKED_CAST")
+                val photos = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+
+                val totalSize = photos.sumOf { (it["file_size"] as? Number)?.toLong() ?: 0L }
+                val photoCount = photos.size
+                val familyIds = photos.mapNotNull { it["family_id"]?.toString() }.toSet()
+
+                val familyRequest = buildPublicRequest("rest/v1/family_groups?select=id,name")
+                    .get().build()
+                val familyResponse = client.newCall(familyRequest).execute()
+                val familyBody = familyResponse.body?.string() ?: "[]"
+                @Suppress("UNCHECKED_CAST")
+                val families = gson.fromJson(familyBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+                val familyCount = families.size
+                val memberCount = families.sumOf { (it["member_names"] as? List<*>)?.size ?: 0 }
+
+                val versionRequest = buildPublicRequest("rest/v1/app_versions?select=id")
+                    .get().build()
+                val versionResponse = client.newCall(versionRequest).execute()
+                val versionBody = versionResponse.body?.string() ?: "[]"
+                @Suppress("UNCHECKED_CAST")
+                val versions = gson.fromJson(versionBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+                val versionCount = versions.size
+
+                mapOf(
+                    "total_size" to totalSize,
+                    "photo_count" to photoCount,
+                    "family_count" to familyCount,
+                    "member_count" to memberCount,
+                    "version_count" to versionCount
+                )
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
 }

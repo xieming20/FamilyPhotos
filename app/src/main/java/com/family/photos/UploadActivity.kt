@@ -39,7 +39,7 @@ class UploadActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         familyId = intent.getStringExtra("familyId") ?: ""
-        if (familyId.isEmpty()) { Toast.makeText(this, "家庭组信息异常", Toast.LENGTH_SHORT).show(); finish(); return }
+        if (familyId.isEmpty()) { Toast.makeText(this, "家庭组信息异常", Toast.LENGTH_SHORT).show(); finish(); overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right); return }
 
         binding.toolbar.setNavigationOnClickListener { finish(); overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) }
 

@@ -174,6 +174,85 @@ object SupabaseUtil {
         }
     }
 
+    suspend fun updateFamilyGroup(familyId: String, name: String? = null, inviteCode: String? = null) {
+        withContext(Dispatchers.IO) {
+            val fields = mutableMapOf<String, Any>()
+            if (name != null) fields["name"] = name
+            if (inviteCode != null) fields["invite_code"] = inviteCode
+            if (fields.isEmpty()) return@withContext
+            val body = gson.toJson(fields)
+            val request = buildRequest("rest/v1/family_groups?id=eq.$familyId")
+                .patch(body.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) throw Exception("更新失败（HTTP ${response.code}）")
+        }
+    }
+
+    suspend fun removeMember(familyId: String, memberId: String, memberName: String) {
+        withContext(Dispatchers.IO) {
+            val request = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
+                .get().build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: throw Exception("查询失败")
+            @Suppress("UNCHECKED_CAST")
+            val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+            val family = list?.firstOrNull() ?: throw Exception("家庭组不存在")
+
+            @Suppress("UNCHECKED_CAST")
+            val memberIds = ((family["member_ids"] as? List<String>) ?: emptyList()).filter { it != memberId }
+            @Suppress("UNCHECKED_CAST")
+            val memberNames = ((family["member_names"] as? List<String>) ?: emptyList()).filter { it != memberName }
+
+            val updateBody = gson.toJson(mapOf("member_ids" to memberIds, "member_names" to memberNames))
+            val updateRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId")
+                .patch(updateBody.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            val updateResponse = client.newCall(updateRequest).execute()
+            if (!updateResponse.isSuccessful) throw Exception("移除成员失败（HTTP ${updateResponse.code}）")
+
+            val profileBody = gson.toJson(mapOf("family_id" to ""))
+            val profileRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$memberId")
+                .patch(profileBody.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            client.newCall(profileRequest).execute()
+        }
+    }
+
+    suspend fun updateMemberName(familyId: String, memberId: String, oldName: String, newName: String) {
+        withContext(Dispatchers.IO) {
+            val request = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
+                .get().build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: throw Exception("查询失败")
+            @Suppress("UNCHECKED_CAST")
+            val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+            val family = list?.firstOrNull() ?: throw Exception("家庭组不存在")
+
+            @Suppress("UNCHECKED_CAST")
+            val memberNames = (family["member_names"] as? MutableList<String>) ?: mutableListOf()
+            val newNames = memberNames.map { if (it == oldName) newName else it }
+
+            val updateBody = gson.toJson(mapOf("member_names" to newNames))
+            val updateRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId")
+                .patch(updateBody.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            val updateResponse = client.newCall(updateRequest).execute()
+            if (!updateResponse.isSuccessful) throw Exception("修改昵称失败（HTTP ${updateResponse.code}）")
+
+            val profileBody = gson.toJson(mapOf("display_name" to newName))
+            val profileRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$memberId")
+                .patch(profileBody.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            client.newCall(profileRequest).execute()
+        }
+    }
+
     suspend fun joinFamilyGroup(inviteCode: String, userId: String, userName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
             val request = buildRequest("rest/v1/family_groups?invite_code=eq.$inviteCode&limit=1")

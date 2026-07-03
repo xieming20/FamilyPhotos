@@ -384,7 +384,11 @@ class MainActivity : AppCompatActivity() {
                 Triple("创建新家庭组", android.R.drawable.ic_menu_add, 2),
                 Triple("加入其他家庭组", android.R.drawable.ic_menu_send, 3)
             )
-            if (isAdmin) base.add(Triple("删除此家庭组", android.R.drawable.ic_menu_delete, 4))
+            if (isAdmin) {
+                base.add(Triple("成员管理", android.R.drawable.ic_menu_view, 5))
+                base.add(Triple("修改家庭组信息", android.R.drawable.ic_menu_edit, 6))
+                base.add(Triple("删除此家庭组", android.R.drawable.ic_menu_delete, 4))
+            }
             base.toList()
         }
 
@@ -408,6 +412,8 @@ class MainActivity : AppCompatActivity() {
                         2 -> showCreateFamilyDialog()
                         3 -> showJoinFamilyDialog()
                         4 -> showDeleteFamilyDialog()
+                        5 -> showMemberManage()
+                        6 -> showEditFamilyInfo()
                     }
                 }
             }.create()
@@ -526,6 +532,137 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "邀请码已复制", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("关闭", null).create()
+            dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+            dialog.show()
+        }
+    }
+
+    private fun showMemberManage() {
+        currentFamilyGroup?.let { group ->
+            @Suppress("UNCHECKED_CAST")
+            val memberIds = (group["member_ids"] as? List<String>) ?: emptyList()
+            @Suppress("UNCHECKED_CAST")
+            val memberNames = (group["member_names"] as? List<String>) ?: emptyList()
+            val uid = SupabaseUtil.currentUserId()
+
+            val items = memberNames.mapIndexed { i, name ->
+                val id = memberIds.getOrNull(i) ?: ""
+                val badge = if (id == uid) "（我）" else ""
+                val role = if (id == group["creator_id"]) " [管理员]" else ""
+                "$name$badge$role"
+            }.toMutableList()
+
+            val dialog = AlertDialog.Builder(this)
+                .setTitle("成员管理（${items.size}人）")
+                .setItems(items.toTypedArray()) { _, which ->
+                    val memberId = memberIds.getOrNull(which) ?: return@setItems
+                    val memberName = memberNames.getOrNull(which) ?: return@setItems
+                    if (memberId == group["creator_id"]) {
+                        Toast.makeText(this, "不能操作管理员", Toast.LENGTH_SHORT).show()
+                        return@setItems
+                    }
+                    showMemberActions(memberId, memberName)
+                }
+                .setNegativeButton("关闭", null)
+                .create()
+            dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+            dialog.show()
+        }
+    }
+
+    private fun showMemberActions(memberId: String, memberName: String) {
+        val options = arrayOf("修改昵称", "移除成员")
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("操作 - $memberName")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditMemberName(memberId, memberName)
+                    1 -> confirmRemoveMember(memberId, memberName)
+                }
+            }
+            .setNegativeButton("取消", null)
+            .create()
+        dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
+        dialog.show()
+    }
+
+    private fun showEditMemberName(memberId: String, oldName: String) {
+        val input = EditText(this).apply {
+            hint = "输入新昵称"
+            setText(oldName)
+            setPadding(48, 24, 48, 24)
+        }
+        showSmoothInputDialog("修改昵称", input, "保存") {
+            val newName = input.text.toString().trim()
+            if (newName.isEmpty()) { Toast.makeText(this, "昵称不能为空", Toast.LENGTH_SHORT).show(); return@showSmoothInputDialog }
+            lifecycleScope.launch {
+                try {
+                    SupabaseUtil.updateMemberName(familyId, memberId, oldName, newName)
+                    loadMyFamilyGroups()
+                    Toast.makeText(this@MainActivity, "昵称已修改", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "修改失败：${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun confirmRemoveMember(memberId: String, memberName: String) {
+        showSmoothDialog("移除成员", "确定要将「$memberName」移出家庭组吗？", "移除") {
+            lifecycleScope.launch {
+                try {
+                    SupabaseUtil.removeMember(familyId, memberId, memberName)
+                    loadMyFamilyGroups()
+                    Toast.makeText(this@MainActivity, "已移除成员", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "移除失败：${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun showEditFamilyInfo() {
+        currentFamilyGroup?.let { group ->
+            val container = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(48, 24, 48, 0)
+            }
+            val etName = EditText(this).apply {
+                hint = "家庭组名称"
+                setText(group["name"]?.toString() ?: "")
+                setPadding(0, 12, 0, 12)
+            }
+            val etCode = EditText(this).apply {
+                hint = "邀请码（留空不修改）"
+                setText(group["invite_code"]?.toString() ?: "")
+                setPadding(0, 12, 0, 12)
+            }
+            container.addView(etName)
+            container.addView(etCode)
+
+            val dialog = AlertDialog.Builder(this)
+                .setTitle("修改家庭组信息")
+                .setView(container)
+                .setPositiveButton("保存") { _, _ ->
+                    val newName = etName.text.toString().trim()
+                    val newCode = etCode.text.toString().trim()
+                    if (newName.isEmpty()) { Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
+                    if (newCode.isNotEmpty() && (newCode.length != 6 || !newCode.all { it.isLetterOrDigit() })) {
+                        Toast.makeText(this, "邀请码必须为6位字母或数字", Toast.LENGTH_SHORT).show(); return@setPositiveButton
+                    }
+                    lifecycleScope.launch {
+                        try {
+                            val codeToUpdate = newCode.ifEmpty { null }
+                            SupabaseUtil.updateFamilyGroup(familyId, newName, codeToUpdate)
+                            loadMyFamilyGroups()
+                            Toast.makeText(this@MainActivity, "修改成功", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(this@MainActivity, "修改失败：${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .setNegativeButton("取消", null)
+                .create()
             dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
             dialog.show()
         }

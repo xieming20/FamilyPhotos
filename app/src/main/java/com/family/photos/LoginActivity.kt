@@ -3,11 +3,9 @@ package com.family.photos
 import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
+import android.view.View
 import android.view.animation.DecelerateInterpolator
-import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.family.photos.databinding.ActivityLoginBinding
@@ -29,23 +27,29 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        playEnterAnimation()
         setupViews()
+        playEnterAnimation()
     }
 
     private fun playEnterAnimation() {
-        val views = listOf(binding.tilEmail, binding.tilPassword, binding.tilDisplayName, binding.btnSubmit, binding.tvSwitchMode, binding.btnShareCodeLogin)
+        val views = listOf(binding.cardAdminLogin, binding.cardMemberLogin)
         views.forEachIndexed { i, view ->
             view.alpha = 0f
-            view.translationY = 30f
+            view.translationY = 40f
             view.animate().alpha(1f).translationY(0f)
-                .setDuration(400).setInterpolator(DecelerateInterpolator())
-                .setStartDelay((i + 1) * 80L).start()
+                .setDuration(500).setInterpolator(DecelerateInterpolator())
+                .setStartDelay((i + 1) * 120L).start()
         }
     }
 
     private fun setupViews() {
-        updateModeUI()
+        showRoleSelect()
+
+        binding.cardAdminLogin.setOnClickListener { showAdminLogin() }
+        binding.cardMemberLogin.setOnClickListener { showMemberLogin() }
+
+        binding.tvBackToRole.setOnClickListener { showRoleSelect() }
+        binding.tvBackToRole2.setOnClickListener { showRoleSelect() }
 
         binding.tvSwitchMode.setOnClickListener {
             isLoginMode = !isLoginMode
@@ -56,73 +60,74 @@ class LoginActivity : AppCompatActivity() {
             val email = binding.etEmail.text.toString().trim()
             val password = binding.etPassword.text.toString().trim()
             val displayName = binding.etDisplayName.text.toString().trim()
-
             if (!validateInput(email, password, displayName)) return@setOnClickListener
-
-            binding.btnSubmit.isEnabled = false
-            binding.progressBar.visibility = android.view.View.VISIBLE
-
-            lifecycleScope.launch {
-                try {
-                    if (isLoginMode) SupabaseUtil.signIn(email, password)
-                    else SupabaseUtil.signUp(email, password, displayName)
-                    navigateToMain()
-                } catch (e: Exception) {
-                    showError(if (isLoginMode) "登录失败" else "注册失败", e.message)
-                } finally {
-                    binding.btnSubmit.isEnabled = true
-                    binding.progressBar.visibility = android.view.View.GONE
-                }
-            }
+            doAdminLogin(email, password, displayName)
         }
 
-        binding.btnShareCodeLogin.setOnClickListener { showShareCodeLoginDialog() }
+        binding.btnMemberLogin.setOnClickListener {
+            val code = binding.etInviteCode.text.toString().trim().uppercase()
+            val name = binding.etMemberName.text.toString().trim()
+            if (code.length != 6 || !code.all { it.isLetterOrDigit() }) {
+                Toast.makeText(this, "邀请码为6位字母或数字", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (name.isEmpty()) {
+                Toast.makeText(this, "请输入昵称", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            doMemberLogin(code, name)
+        }
     }
 
-    private fun showShareCodeLoginDialog() {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 0)
-        }
-        val etCode = EditText(this).apply {
-            hint = "请输入6位分享码"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            setPadding(0, 12, 0, 12)
-        }
-        val etName = EditText(this).apply {
-            hint = "请输入您的昵称"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            setPadding(0, 12, 0, 12)
-        }
-        container.addView(etCode)
-        container.addView(etName)
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("使用邀请码登录")
-            .setView(container)
-            .setPositiveButton("登录") { _, _ ->
-                val code = etCode.text.toString().trim()
-                val name = etName.text.toString().trim()
-                if (code.length != 6 || !code.all { it.isLetterOrDigit() }) {
-                    Toast.makeText(this, "邀请码为6位字母或数字", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                if (name.isEmpty()) {
-                    Toast.makeText(this, "请输入昵称", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                doShareCodeLogin(code, name)
-            }
-            .setNegativeButton("取消", null)
-            .create()
-        dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
-        dialog.show()
+    private fun showRoleSelect() {
+        binding.roleSelectArea.visibility = View.VISIBLE
+        binding.adminLoginArea.visibility = View.GONE
+        binding.memberLoginArea.visibility = View.GONE
     }
 
-    private fun doShareCodeLogin(code: String, displayName: String) {
-        binding.progressBar.visibility = android.view.View.VISIBLE
+    private fun showAdminLogin() {
+        binding.roleSelectArea.visibility = View.GONE
+        binding.adminLoginArea.visibility = View.VISIBLE
+        binding.memberLoginArea.visibility = View.GONE
+        updateModeUI()
+        animateArea(binding.adminLoginArea)
+    }
+
+    private fun showMemberLogin() {
+        binding.roleSelectArea.visibility = View.GONE
+        binding.adminLoginArea.visibility = View.GONE
+        binding.memberLoginArea.visibility = View.VISIBLE
+        animateArea(binding.memberLoginArea)
+    }
+
+    private fun animateArea(area: View) {
+        area.alpha = 0f
+        area.translationY = 30f
+        area.animate().alpha(1f).translationY(0f)
+            .setDuration(400).setInterpolator(DecelerateInterpolator()).start()
+    }
+
+    private fun doAdminLogin(email: String, password: String, displayName: String) {
         binding.btnSubmit.isEnabled = false
-        binding.btnShareCodeLogin.isEnabled = false
+        binding.progressBar.visibility = View.VISIBLE
+
+        lifecycleScope.launch {
+            try {
+                if (isLoginMode) SupabaseUtil.signIn(email, password)
+                else SupabaseUtil.signUp(email, password, displayName)
+                navigateToMain()
+            } catch (e: Exception) {
+                Toast.makeText(this@LoginActivity, "${if (isLoginMode) "登录失败" else "注册失败"}：${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.btnSubmit.isEnabled = true
+                binding.progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun doMemberLogin(code: String, displayName: String) {
+        binding.btnMemberLogin.isEnabled = false
+        binding.progressBar.visibility = View.VISIBLE
 
         lifecycleScope.launch {
             try {
@@ -136,28 +141,27 @@ class LoginActivity : AppCompatActivity() {
                 overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out)
                 finish()
             } catch (e: Exception) {
-                showError("分享码登录失败", e.message)
+                Toast.makeText(this@LoginActivity, "登录失败：${e.message}", Toast.LENGTH_LONG).show()
             } finally {
-                binding.progressBar.visibility = android.view.View.GONE
-                binding.btnSubmit.isEnabled = true
-                binding.btnShareCodeLogin.isEnabled = true
+                binding.btnMemberLogin.isEnabled = true
+                binding.progressBar.visibility = View.GONE
             }
         }
     }
 
     private fun updateModeUI() {
         if (isLoginMode) {
-            binding.tvTitle.text = "欢迎回来"
+            binding.tvTitle.text = "管理员登录"
             binding.tvSubtitle.text = "登录您的时光相册账号"
             binding.btnSubmit.text = "登 录"
             binding.tvSwitchMode.text = "还没有账号？点击注册"
-            binding.tilDisplayName.visibility = android.view.View.GONE
+            binding.tilDisplayName.visibility = View.GONE
         } else {
-            binding.tvTitle.text = "创建账号"
-            binding.tvSubtitle.text = "注册后即可与家人分享照片"
+            binding.tvTitle.text = "注册账号"
+            binding.tvSubtitle.text = "注册后即可创建和管理家庭相册"
             binding.btnSubmit.text = "注 册"
             binding.tvSwitchMode.text = "已有账号？点击登录"
-            binding.tilDisplayName.visibility = android.view.View.VISIBLE
+            binding.tilDisplayName.visibility = View.VISIBLE
         }
     }
 
@@ -166,10 +170,6 @@ class LoginActivity : AppCompatActivity() {
         if (TextUtils.isEmpty(password) || password.length < 6) { binding.etPassword.error = "密码至少需要6位"; return false }
         if (!isLoginMode && TextUtils.isEmpty(displayName)) { binding.etDisplayName.error = "请输入您的昵称"; return false }
         return true
-    }
-
-    private fun showError(title: String, detail: String?) {
-        Toast.makeText(this, "$title：${detail ?: "未知错误"}", Toast.LENGTH_LONG).show()
     }
 
     private fun navigateToMain() {

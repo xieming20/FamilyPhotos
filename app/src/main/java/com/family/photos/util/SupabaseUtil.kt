@@ -225,14 +225,29 @@ object SupabaseUtil {
                 val request = buildRequest("rest/v1/family_groups?member_ids=cs.$encodedValue&order=created_at.desc")
                     .get().build()
                 val response = client.newCall(request).execute()
-                val body = response.body?.string() ?: return@withContext emptyList()
-                if (!response.isSuccessful) return@withContext queryByCreatorId(uid)
+                val body = response.body?.string() ?: return@withContext queryByFamilyId(uid)
+                if (!response.isSuccessful) return@withContext queryByFamilyId(uid)
                 @Suppress("UNCHECKED_CAST")
                 val result = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
-                if (result.isEmpty()) queryByCreatorId(uid) else result
+                if (result.isEmpty()) queryByFamilyId(uid) else result
             } catch (_: Exception) {
-                queryByCreatorId(uid)
+                queryByFamilyId(uid)
             }
+        }
+    }
+
+    private suspend fun queryByFamilyId(uid: String): List<Map<String, Any?>> {
+        val familyId = getMyFamilyId(uid) ?: return queryByCreatorId(uid)
+        return try {
+            val request = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
+                .get().build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return queryByCreatorId(uid)
+            @Suppress("UNCHECKED_CAST")
+            val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+            list ?: queryByCreatorId(uid)
+        } catch (_: Exception) {
+            queryByCreatorId(uid)
         }
     }
 
@@ -243,6 +258,20 @@ object SupabaseUtil {
         val body = response.body?.string() ?: return emptyList()
         @Suppress("UNCHECKED_CAST")
         return gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+    }
+
+    suspend fun getMyFamilyId(uid: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = buildRequest("rest/v1/user_profiles?user_id=eq.$uid&limit=1&select=family_id")
+                    .get().build()
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: return@withContext null
+                @Suppress("UNCHECKED_CAST")
+                val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+                list?.firstOrNull()?.get("family_id")?.toString()?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) { null }
+        }
     }
 
     suspend fun getFamilyGroup(familyId: String): Map<String, Any?> {
@@ -308,8 +337,8 @@ object SupabaseUtil {
         return list.isNullOrEmpty()
     }
 
-    suspend fun inviteCodeLogin(code: String, displayName: String) {
-        withContext(Dispatchers.IO) {
+    suspend fun inviteCodeLogin(code: String, displayName: String): Map<String, Any?> {
+        return withContext(Dispatchers.IO) {
             val findRequest = buildPublicRequest("rest/v1/family_groups?invite_code=eq.$code&limit=1")
                 .get().build()
             val findResponse = client.newCall(findRequest).execute()
@@ -318,6 +347,7 @@ object SupabaseUtil {
             @Suppress("UNCHECKED_CAST")
             val groups = gson.fromJson(findBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
             if (groups.isNullOrEmpty()) throw Exception("邀请码无效，请检查后重试")
+            val familyGroup = groups[0]
 
             val nameHash = kotlin.math.abs(displayName.hashCode()).toString()
             val email = "ic${code}${nameHash}@invite.fm"
@@ -352,9 +382,10 @@ object SupabaseUtil {
                 saveSession(result)
 
                 val uid = currentUserId()
+                val familyId = familyGroup["id"].toString()
                 val profileBody = gson.toJson(mapOf(
                     "user_id" to uid, "display_name" to displayName,
-                    "email" to email, "family_id" to ""
+                    "email" to email, "family_id" to familyId
                 ))
                 val profileRequest = buildRequest("rest/v1/user_profiles")
                     .post(profileBody.toRequestBody("application/json".toMediaType()))
@@ -365,7 +396,22 @@ object SupabaseUtil {
 
             val uid = currentUserId()
             if (uid.isEmpty()) throw Exception("登录异常，请重试")
-            joinFamilyGroup(code, uid, displayName)
+
+            try {
+                joinFamilyGroup(code, uid, displayName)
+            } catch (_: Exception) {
+                try {
+                    val familyId = familyGroup["id"].toString()
+                    val profileBody = gson.toJson(mapOf("family_id" to familyId))
+                    val profileRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$uid")
+                        .patch(profileBody.toRequestBody("application/json".toMediaType()))
+                        .header("Prefer", "return=minimal")
+                        .build()
+                    client.newCall(profileRequest).execute()
+                } catch (_: Exception) {}
+            }
+
+            familyGroup
         }
     }
 

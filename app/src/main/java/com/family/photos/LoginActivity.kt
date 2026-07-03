@@ -126,8 +126,15 @@ class LoginActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                SupabaseUtil.inviteCodeLogin(code, displayName)
-                navigateToMain()
+                val familyGroup = SupabaseUtil.inviteCodeLogin(code, displayName)
+                val intent = Intent(this@LoginActivity, MainActivity::class.java).apply {
+                    putExtra("family_id", familyGroup["id"]?.toString() ?: "")
+                    putExtra("family_name", familyGroup["name"]?.toString() ?: "")
+                    putExtra("invite_code", code)
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out)
+                finish()
             } catch (e: Exception) {
                 showError("分享码登录失败", e.message)
             } finally {

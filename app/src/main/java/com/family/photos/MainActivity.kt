@@ -44,6 +44,22 @@ class MainActivity : AppCompatActivity() {
         loadUserProfile()
         setupViews()
         checkForUpdate()
+
+        val intentFamilyId = intent.getStringExtra("family_id")
+        val intentFamilyName = intent.getStringExtra("family_name")
+        val intentInviteCode = intent.getStringExtra("invite_code")
+        if (!intentFamilyId.isNullOrEmpty()) {
+            familyGroups = listOf(mapOf(
+                "id" to intentFamilyId,
+                "name" to (intentFamilyName ?: ""),
+                "invite_code" to (intentInviteCode ?: ""),
+                "creator_id" to "",
+                "member_ids" to listOf(SupabaseUtil.currentUserId()),
+                "member_names" to listOf("")
+            ))
+            currentIndex = 0
+            updateFamilyDisplay()
+        }
     }
 
     private fun playEnterAnimations() {

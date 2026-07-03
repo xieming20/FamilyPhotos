@@ -568,19 +568,45 @@ object SupabaseUtil {
     suspend fun getStorageUsage(): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = buildPublicRequest("rest/v1/photos?select=id,file_size,created_at,family_id")
-                    .get().build()
-                val response = client.newCall(request).execute()
-                if (!response.isSuccessful) throw Exception("查询失败（HTTP ${response.code}）")
-                val body = response.body?.string() ?: throw Exception("查询失败")
+                val listBody = gson.toJson(mapOf("prefix" to "", "limit" to 1000))
+                val storageRequest = Request.Builder()
+                    .url("$SUPABASE_URL/storage/v1/object/list/photos")
+                    .header("apikey", SUPABASE_KEY)
+                    .header("Authorization", "Bearer $SUPABASE_KEY")
+                    .header("Content-Type", "application/json")
+                    .post(listBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+                val storageResponse = client.newCall(storageRequest).execute()
+                if (!storageResponse.isSuccessful) throw Exception("存储查询失败（HTTP ${storageResponse.code}）")
+                val storageBody = storageResponse.body?.string() ?: throw Exception("查询失败")
                 @Suppress("UNCHECKED_CAST")
-                val photos = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+                val files = gson.fromJson(storageBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
 
-                val totalSize = photos.sumOf { (it["file_size"] as? Number)?.toLong() ?: 0L }
-                val photoCount = photos.size
-                val familyIds = photos.mapNotNull { it["family_id"]?.toString() }.toSet()
+                var totalSize = 0L
+                var photoCount = 0
+                var apkCount = 0
+                var apkSize = 0L
+                for (file in files) {
+                    val metadata = file["metadata"] as? Map<String, Any?>
+                    val size = (metadata?.get("size") as? Number)?.toLong() ?: 0L
+                    val name = file["name"]?.toString() ?: ""
+                    totalSize += size
+                    if (name.endsWith(".apk")) {
+                        apkCount++
+                        apkSize += size
+                    } else {
+                        photoCount++
+                    }
+                }
 
-                val familyRequest = buildPublicRequest("rest/v1/family_groups?select=id,name")
+                val photoRequest = buildPublicRequest("rest/v1/photos?select=id")
+                    .get().build()
+                val photoResponse = client.newCall(photoRequest).execute()
+                val photoBody = photoResponse.body?.string() ?: "[]"
+                @Suppress("UNCHECKED_CAST")
+                val photoRecords = gson.fromJson(photoBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
+
+                val familyRequest = buildPublicRequest("rest/v1/family_groups?select=id,name,member_names")
                     .get().build()
                 val familyResponse = client.newCall(familyRequest).execute()
                 val familyBody = familyResponse.body?.string() ?: "[]"
@@ -589,20 +615,15 @@ object SupabaseUtil {
                 val familyCount = families.size
                 val memberCount = families.sumOf { (it["member_names"] as? List<*>)?.size ?: 0 }
 
-                val versionRequest = buildPublicRequest("rest/v1/app_versions?select=id")
-                    .get().build()
-                val versionResponse = client.newCall(versionRequest).execute()
-                val versionBody = versionResponse.body?.string() ?: "[]"
-                @Suppress("UNCHECKED_CAST")
-                val versions = gson.fromJson(versionBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: emptyList()
-                val versionCount = versions.size
-
                 mapOf(
                     "total_size" to totalSize,
-                    "photo_count" to photoCount,
+                    "photo_size" to (totalSize - apkSize),
+                    "apk_size" to apkSize,
+                    "photo_file_count" to photoCount,
+                    "photo_record_count" to photoRecords.size,
                     "family_count" to familyCount,
                     "member_count" to memberCount,
-                    "version_count" to versionCount
+                    "apk_count" to apkCount
                 )
             } catch (e: Exception) {
                 throw e

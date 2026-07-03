@@ -820,16 +820,19 @@ class MainActivity : AppCompatActivity() {
             try {
                 val usage = SupabaseUtil.getStorageUsage()
                 val totalSize = (usage["total_size"] as? Long) ?: 0L
-                val photoCount = (usage["photo_count"] as? Int) ?: 0
+                val photoSize = (usage["photo_size"] as? Long) ?: 0L
+                val apkSize = (usage["apk_size"] as? Long) ?: 0L
+                val photoFileCount = (usage["photo_file_count"] as? Int) ?: 0
+                val photoRecordCount = (usage["photo_record_count"] as? Int) ?: 0
                 val familyCount = (usage["family_count"] as? Int) ?: 0
                 val memberCount = (usage["member_count"] as? Int) ?: 0
-                val versionCount = (usage["version_count"] as? Int) ?: 0
+                val apkCount = (usage["apk_count"] as? Int) ?: 0
 
-                val sizeStr = when {
-                    totalSize >= 1073741824 -> "%.1f GB".format(totalSize / 1073741824.0)
-                    totalSize >= 1048576 -> "%.1f MB".format(totalSize / 1048576.0)
-                    totalSize >= 1024 -> "%.1f KB".format(totalSize / 1024.0)
-                    else -> "$totalSize B"
+                fun fmt(bytes: Long) = when {
+                    bytes >= 1073741824 -> "%.1f GB".format(bytes / 1073741824.0)
+                    bytes >= 1048576 -> "%.1f MB".format(bytes / 1048576.0)
+                    bytes >= 1024 -> "%.1f KB".format(bytes / 1024.0)
+                    else -> "$bytes B"
                 }
 
                 val container = LinearLayout(this@MainActivity).apply {
@@ -838,43 +841,36 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 val rows = listOf(
-                    "照片总大小" to sizeStr,
-                    "照片数量" to "$photoCount 张",
+                    "存储总用量" to fmt(totalSize),
+                    "照片文件" to "${fmt(photoSize)}（${photoFileCount}个文件，${photoRecordCount}条记录）",
+                    "应用安装包" to "${fmt(apkSize)}（${apkCount}个）",
                     "家庭组" to "$familyCount 个",
-                    "成员总数" to "$memberCount 人",
-                    "版本记录" to "$versionCount 条"
+                    "成员总数" to "$memberCount 人"
                 )
 
-                rows.forEach { (label, value) ->
+                rows.forEachIndexed { index, (label, value) ->
                     val row = LinearLayout(this@MainActivity).apply {
                         orientation = LinearLayout.HORIZONTAL
                         setPadding(0, 10, 0, 10)
                     }
-                    val labelView = android.widget.TextView(this@MainActivity).apply {
+                    row.addView(android.widget.TextView(this@MainActivity).apply {
                         text = label
                         setTextColor(resources.getColor(R.color.text_secondary, null))
                         textSize = 14f
                         layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                    }
-                    val valueView = android.widget.TextView(this@MainActivity).apply {
+                    })
+                    row.addView(android.widget.TextView(this@MainActivity).apply {
                         text = value
                         setTextColor(resources.getColor(R.color.text_primary, null))
-                        textSize = 15f
-                        setTypeface(null, android.graphics.Typeface.BOLD)
+                        textSize = 14f
                         gravity = android.view.Gravity.END
-                    }
-                    row.addView(labelView)
-                    row.addView(valueView)
-
-                    if (label != rows.last().first) {
-                        val divider = android.view.View(this@MainActivity).apply {
+                    })
+                    container.addView(row)
+                    if (index < rows.lastIndex) {
+                        container.addView(android.view.View(this@MainActivity).apply {
                             setBackgroundColor(resources.getColor(R.color.divider, null))
-                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply { topMargin = 4 }
-                        }
-                        container.addView(row)
-                        container.addView(divider)
-                    } else {
-                        container.addView(row)
+                            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1).apply { topMargin = 2; bottomMargin = 2 }
+                        })
                     }
                 }
 

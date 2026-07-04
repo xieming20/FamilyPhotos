@@ -12,8 +12,8 @@ android {
         applicationId = "com.family.photos"
         minSdk = 26
         targetSdk = 34
-        versionCode = 23
-        versionName = "2.3.2"
+        versionCode = 24
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -134,18 +134,11 @@ object SupabaseUtil {
         }
     }
 
-    suspend fun createFamilyGroup(name: String, creatorId: String, creatorName: String, customCode: String? = null): Map<String, Any?> {
+    suspend fun createFamilyGroup(name: String, creatorId: String, creatorName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
-            val inviteCode = if (!customCode.isNullOrEmpty()) {
-                if (!isInviteCodeAvailableInternal(customCode)) throw Exception("该邀请码已被使用，请换一个")
-                customCode
-            } else {
-                generateUniqueCode()
-            }
             val body = gson.toJson(mapOf(
                 "name" to name, "creator_id" to creatorId, "creator_name" to creatorName,
-                "member_ids" to listOf(creatorId), "member_names" to listOf(creatorName),
-                "invite_code" to inviteCode
+                "member_ids" to listOf(creatorId), "member_names" to listOf(creatorName)
             ))
             val request = buildRequest("rest/v1/family_groups")
                 .post(body.toRequestBody("application/json".toMediaType()))
@@ -181,11 +174,10 @@ object SupabaseUtil {
         }
     }
 
-    suspend fun updateFamilyGroup(familyId: String, name: String? = null, inviteCode: String? = null) {
+    suspend fun updateFamilyGroup(familyId: String, name: String? = null) {
         withContext(Dispatchers.IO) {
             val fields = mutableMapOf<String, Any>()
             if (name != null) fields["name"] = name
-            if (inviteCode != null) fields["invite_code"] = inviteCode
             if (fields.isEmpty()) return@withContext
             val body = gson.toJson(fields)
             val request = buildRequest("rest/v1/family_groups?id=eq.$familyId")
@@ -260,18 +252,17 @@ object SupabaseUtil {
         }
     }
 
-    suspend fun joinFamilyGroup(inviteCode: String, userId: String, userName: String): Map<String, Any?> {
+    suspend fun joinFamilyGroup(familyId: String, userId: String, userName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
-            val request = buildRequest("rest/v1/family_groups?invite_code=eq.$inviteCode&limit=1")
+            val request = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
                 .get().build()
             val response = client.newCall(request).execute()
             val body = response.body?.string() ?: throw Exception("查询失败")
             @Suppress("UNCHECKED_CAST")
             val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
-            if (list.isNullOrEmpty()) throw Exception("邀请码无效，请检查后重试")
+            if (list.isNullOrEmpty()) throw Exception("家庭组不存在")
 
             val family = list[0]
-            val familyId = family["id"].toString()
             @Suppress("UNCHECKED_CAST")
             val memberIds = (family["member_ids"] as? List<String>) ?: emptyList()
             if (memberIds.contains(userId)) return@withContext family
@@ -439,35 +430,12 @@ object SupabaseUtil {
         }
     }
 
-    suspend fun isInviteCodeAvailable(code: String): Boolean {
-        return withContext(Dispatchers.IO) { isInviteCodeAvailableInternal(code) }
-    }
-
-    private fun isInviteCodeAvailableInternal(code: String): Boolean {
-        val request = buildRequest("rest/v1/family_groups?invite_code=eq.$code&limit=1&select=id")
-            .get().build()
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return false
-        @Suppress("UNCHECKED_CAST")
-        val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
-        return list.isNullOrEmpty()
-    }
-
-    suspend fun inviteCodeLogin(code: String, displayName: String): Map<String, Any?> {
+    suspend fun phoneLogin(phone: String, displayName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
-            val findRequest = buildPublicRequest("rest/v1/family_groups?invite_code=eq.$code&limit=1")
-                .get().build()
-            val findResponse = client.newCall(findRequest).execute()
-            if (!findResponse.isSuccessful) throw Exception("查询邀请码失败（HTTP ${findResponse.code}）")
-            val findBody = findResponse.body?.string() ?: throw Exception("查询失败")
-            @Suppress("UNCHECKED_CAST")
-            val groups = gson.fromJson(findBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
-            if (groups.isNullOrEmpty()) throw Exception("邀请码无效，请检查后重试")
-            val familyGroup = groups[0]
-
-            val nameHash = kotlin.math.abs(displayName.hashCode()).toString()
-            val email = "ic${code}${nameHash}@invite.fm"
-            val password = "Ic${code}!"
+            val name = displayName.ifEmpty { phone }
+            val phoneHash = kotlin.math.abs(phone.hashCode()).toString()
+            val email = "ph${phoneHash}@phone.fm"
+            val password = "Ph${phone}!"
 
             var loggedIn = false
             try {
@@ -493,15 +461,14 @@ object SupabaseUtil {
                     .build()
                 val signUpResponse = client.newCall(signUpRequest).execute()
                 val signUpResponseBody = signUpResponse.body?.string() ?: throw Exception("注册失败")
-                if (!signUpResponse.isSuccessful) throw Exception("邀请码登录失败：${parseError(signUpResponseBody)}")
+                if (!signUpResponse.isSuccessful) throw Exception("手机号登录失败：${parseError(signUpResponseBody)}")
                 val result = gson.fromJson(signUpResponseBody, Map::class.java)
                 saveSession(result)
 
                 val uid = currentUserId()
-                val familyId = familyGroup["id"].toString()
                 val profileBody = gson.toJson(mapOf(
-                    "user_id" to uid, "display_name" to displayName,
-                    "email" to email, "family_id" to familyId
+                    "user_id" to uid, "display_name" to name,
+                    "email" to email, "phone" to phone
                 ))
                 val profileRequest = buildRequest("rest/v1/user_profiles")
                     .post(profileBody.toRequestBody("application/json".toMediaType()))
@@ -513,21 +480,67 @@ object SupabaseUtil {
             val uid = currentUserId()
             if (uid.isEmpty()) throw Exception("登录异常，请重试")
 
-            try {
-                joinFamilyGroup(code, uid, displayName)
-            } catch (_: Exception) {
-                try {
-                    val familyId = familyGroup["id"].toString()
-                    val profileBody = gson.toJson(mapOf("family_id" to familyId))
-                    val profileRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$uid")
-                        .patch(profileBody.toRequestBody("application/json".toMediaType()))
-                        .header("Prefer", "return=minimal")
-                        .build()
-                    client.newCall(profileRequest).execute()
-                } catch (_: Exception) {}
+            val familyId = getMyFamilyId(uid) ?: ""
+            if (familyId.isNotEmpty()) {
+                val family = getFamilyGroup(familyId)
+                return@withContext family
             }
 
-            familyGroup
+            emptyMap<String, Any?>()
+        }
+    }
+
+    suspend fun addMemberByPhone(familyId: String, phone: String): String {
+        return withContext(Dispatchers.IO) {
+            val phoneHash = kotlin.math.abs(phone.hashCode()).toString()
+            val email = "ph${phoneHash}@phone.fm"
+
+            val profileRequest = buildPublicRequest("rest/v1/user_profiles?email=eq.$email&limit=1")
+                .get().build()
+            val profileResponse = client.newCall(profileRequest).execute()
+            val profileBody = profileResponse.body?.string() ?: throw Exception("查询用户失败")
+            @Suppress("UNCHECKED_CAST")
+            val profiles = gson.fromJson(profileBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+            val profile = profiles?.firstOrNull()
+
+            val memberId = profile?.get("user_id")?.toString() ?: ""
+            val memberName = profile?.get("display_name")?.toString() ?: phone
+
+            if (memberId.isNotEmpty()) {
+                val familyRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
+                    .get().build()
+                val familyResponse = client.newCall(familyRequest).execute()
+                val familyBodyStr = familyResponse.body?.string() ?: throw Exception("查询家庭组失败")
+                @Suppress("UNCHECKED_CAST")
+                val familyList = gson.fromJson(familyBodyStr, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+                val family = familyList?.firstOrNull() ?: throw Exception("家庭组不存在")
+
+                @Suppress("UNCHECKED_CAST")
+                val memberIds = (family["member_ids"] as? List<String>) ?: emptyList()
+                if (memberIds.contains(memberId)) throw Exception("该成员已在家庭组中")
+
+                val newIds = memberIds + memberId
+                @Suppress("UNCHECKED_CAST")
+                val memberNames = (family["member_names"] as? List<String>) ?: emptyList()
+                val newNames = memberNames + memberName
+
+                val updateBody = gson.toJson(mapOf("member_ids" to newIds, "member_names" to newNames))
+                val updateRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId")
+                    .patch(updateBody.toRequestBody("application/json".toMediaType()))
+                    .header("Prefer", "return=minimal")
+                    .build()
+                val updateResponse = client.newCall(updateRequest).execute()
+                if (!updateResponse.isSuccessful) throw Exception("添加成员失败")
+
+                val profileUpdateBody = gson.toJson(mapOf("family_id" to familyId))
+                val profileUpdateRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$memberId")
+                    .patch(profileUpdateBody.toRequestBody("application/json".toMediaType()))
+                    .header("Prefer", "return=minimal")
+                    .build()
+                client.newCall(profileUpdateRequest).execute()
+            }
+
+            memberName
         }
     }
 
@@ -593,14 +606,6 @@ object SupabaseUtil {
         } catch (_: Exception) { "操作失败" }
     }
 
-    private fun generateUniqueCode(): String {
-        val chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-        repeat(20) {
-            val code = (1..6).map { chars.random() }.joinToString("")
-            if (isInviteCodeAvailableInternal(code)) return code
-        }
-        return (1..6).map { chars.random() }.joinToString("")
-    }
 
     suspend fun getStorageUsage(): Map<String, Any?> {
         return withContext(Dispatchers.IO) {

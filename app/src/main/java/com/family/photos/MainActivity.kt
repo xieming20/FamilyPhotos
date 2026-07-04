@@ -47,12 +47,10 @@ class MainActivity : AppCompatActivity() {
 
         val intentFamilyId = intent.getStringExtra("family_id")
         val intentFamilyName = intent.getStringExtra("family_name")
-        val intentInviteCode = intent.getStringExtra("invite_code")
         if (!intentFamilyId.isNullOrEmpty()) {
             familyGroups = listOf(mapOf(
                 "id" to intentFamilyId,
                 "name" to (intentFamilyName ?: ""),
-                "invite_code" to (intentInviteCode ?: ""),
                 "creator_id" to "",
                 "member_ids" to listOf(SupabaseUtil.currentUserId()),
                 "member_names" to listOf("")
@@ -154,7 +152,7 @@ class MainActivity : AppCompatActivity() {
         val isCreator = group["creator_id"]?.toString() == SupabaseUtil.currentUserId()
 
         binding.tvFamilyName.text = group["name"]?.toString() ?: ""
-        binding.tvFamilyMemberCount.text = "${names.size}位成员 · 邀请码：${group["invite_code"]}"
+        binding.tvFamilyMemberCount.text = "${names.size}位成员"
         binding.tvAdminBadge.visibility = if (isCreator) View.VISIBLE else View.GONE
         binding.ivDropdown.visibility = if (familyGroups.size > 1) View.VISIBLE else View.GONE
         loadPhotoCount(familyId)
@@ -487,57 +485,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCreateFamilyDialog() {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 24, 48, 0)
-        }
-        val etName = EditText(this).apply {
-            hint = "请输入家庭组名称"
-            setPadding(0, 12, 0, 12)
-        }
-        val etCode = EditText(this).apply {
-            hint = "自定义6位邀请码（可选，留空自动生成）"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            setPadding(0, 12, 0, 12)
-        }
-        container.addView(etName)
-        container.addView(etCode)
-
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("创建家庭组")
-            .setView(container)
-            .setPositiveButton("创建") { _, _ ->
-                val name = etName.text.toString().trim()
-                val code = etCode.text.toString().trim()
-                if (name.isEmpty()) { Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                if (code.isNotEmpty() && (code.length != 6 || !code.all { it.isLetterOrDigit() })) {
-                    Toast.makeText(this, "邀请码必须为6位字母或数字", Toast.LENGTH_SHORT).show(); return@setPositiveButton
-                }
-                lifecycleScope.launch {
-                    try {
-                        val customCode: String? = code.ifEmpty { null }
-                        SupabaseUtil.createFamilyGroup(name, SupabaseUtil.currentUserId(), getDisplayName(), customCode)
-                        loadMyFamilyGroups()
-                        Toast.makeText(this@MainActivity, "家庭组创建成功！", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(this@MainActivity, "创建失败：${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+        val input = EditText(this).apply { hint = "请输入家庭组名称"; setPadding(48, 24, 48, 24) }
+        showSmoothInputDialog("创建家庭组", input, "创建") {
+            val name = input.text.toString().trim()
+            if (name.isEmpty()) { Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show(); return@showSmoothInputDialog }
+            lifecycleScope.launch {
+                try {
+                    SupabaseUtil.createFamilyGroup(name, SupabaseUtil.currentUserId(), getDisplayName())
+                    loadMyFamilyGroups()
+                    Toast.makeText(this@MainActivity, "家庭组创建成功！", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "创建失败：${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("取消", null)
-            .create()
-        dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
-        dialog.show()
+        }
     }
 
     private fun showJoinFamilyDialog() {
-        val input = EditText(this).apply { hint = "请输入6位邀请码"; setPadding(48, 24, 48, 24) }
+        val input = EditText(this).apply { hint = "请输入家庭组ID"; setPadding(48, 24, 48, 24) }
         showSmoothInputDialog("加入家庭组", input, "加入") {
-            val code = input.text.toString().trim().uppercase()
-            if (code.length != 6) { Toast.makeText(this, "邀请码为6位字符", Toast.LENGTH_SHORT).show(); return@showSmoothInputDialog }
+            val targetFamilyId = input.text.toString().trim()
+            if (targetFamilyId.isEmpty()) { Toast.makeText(this, "请输入家庭组ID", Toast.LENGTH_SHORT).show(); return@showSmoothInputDialog }
             lifecycleScope.launch {
                 try {
-                    SupabaseUtil.joinFamilyGroup(code, SupabaseUtil.currentUserId(), getDisplayName())
+                    SupabaseUtil.joinFamilyGroup(targetFamilyId, SupabaseUtil.currentUserId(), getDisplayName())
                     loadMyFamilyGroups()
                     Toast.makeText(this@MainActivity, "成功加入家庭组！", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
@@ -553,18 +524,19 @@ class MainActivity : AppCompatActivity() {
             val names = (group["member_names"] as? List<String>) ?: emptyList()
             val role = if (isAdmin) "管理员" else "成员"
             showSmoothDialog("家庭组信息",
-                "家庭组名称：${group["name"]}\n创建者：${group["creator_name"]}\n您的角色：$role\n成员：${names.joinToString("、")}\n邀请码：${group["invite_code"]}")
+                "家庭组名称：${group["name"]}\n创建者：${group["creator_name"]}\n您的角色：$role\n成员：${names.joinToString("、")}")
         }
     }
 
     private fun showInviteCode() {
         currentFamilyGroup?.let { group ->
+            val familyIdValue = group["id"]?.toString() ?: ""
             val dialog = AlertDialog.Builder(this).setTitle("邀请家人")
-                .setMessage("将以下邀请码分享给家人：\n\n${group["invite_code"]}\n\n家人在App中输入邀请码即可加入")
-                .setPositiveButton("复制邀请码") { _, _ ->
+                .setMessage("将以下家庭组ID分享给家人：\n\n$familyIdValue\n\n家人在App中输入此ID即可加入")
+                .setPositiveButton("复制ID") { _, _ ->
                     val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("邀请码", group["invite_code"].toString()))
-                    Toast.makeText(this, "邀请码已复制", Toast.LENGTH_SHORT).show()
+                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("家庭组ID", familyIdValue))
+                    Toast.makeText(this, "已复制", Toast.LENGTH_SHORT).show()
                 }
                 .setNegativeButton("关闭", null).create()
             dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
@@ -604,19 +576,42 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val listView = android.widget.ListView(this).apply {
-                adapter = listAdapter
-                dividerHeight = 0
+            val addBtn = com.google.android.material.button.MaterialButton(this).apply {
+                text = "  通过手机号添加成员"
+                textSize = 14f
+                setTextColor(resources.getColor(R.color.primary, null))
+                setIconResource(android.R.drawable.ic_menu_add)
+                iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
+                iconSize = 32
+                cornerRadius = 12
+                strokeColor = resources.getColorStateList(R.color.primary)
+                strokeWidth = 1
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    topMargin = 8
+                }
+            }
+
+            val container = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                val listView = android.widget.ListView(this@MainActivity).apply {
+                    adapter = listAdapter
+                    dividerHeight = 0
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
+                }
+                addView(listView)
+                if (isAdmin) addView(addBtn)
             }
 
             memberManageDialog?.dismiss()
             val dialog = AlertDialog.Builder(this)
                 .setTitle("成员管理（${items.size}人）")
-                .setView(listView)
+                .setView(container)
                 .setNegativeButton("关闭", null)
                 .create()
             memberManageDialog = dialog
 
+            val listView = container.getChildAt(0) as android.widget.ListView
             listView.setOnItemClickListener { _, _, which, _ ->
                 val memberId = memberIds.getOrNull(which) ?: return@setOnItemClickListener
                 val memberName = memberNames.getOrNull(which) ?: return@setOnItemClickListener
@@ -627,8 +622,37 @@ class MainActivity : AppCompatActivity() {
                 showMemberActions(memberId, memberName)
             }
 
+            addBtn.setOnClickListener {
+                dialog.dismiss()
+                showAddMemberByPhone()
+            }
+
             dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
             dialog.show()
+        }
+    }
+
+    private fun showAddMemberByPhone() {
+        val input = EditText(this).apply {
+            hint = "请输入成员手机号"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setPadding(48, 24, 48, 24)
+        }
+        showSmoothInputDialog("添加成员", input, "添加") {
+            val phone = input.text.toString().trim()
+            if (phone.length < 11 || !phone.all { it.isDigit() }) {
+                Toast.makeText(this, "请输入正确的手机号", Toast.LENGTH_SHORT).show()
+                return@showSmoothInputDialog
+            }
+            lifecycleScope.launch {
+                try {
+                    val memberName = SupabaseUtil.addMemberByPhone(familyId, phone)
+                    loadMyFamilyGroups()
+                    Toast.makeText(this@MainActivity, "已添加成员：$memberName", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "添加失败：${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -726,50 +750,27 @@ class MainActivity : AppCompatActivity() {
 
     private fun showEditFamilyInfo() {
         currentFamilyGroup?.let { group ->
-            val container = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(48, 24, 48, 0)
-            }
-            val etName = EditText(this).apply {
+            val input = EditText(this).apply {
                 hint = "家庭组名称"
                 setText(group["name"]?.toString() ?: "")
-                setPadding(0, 12, 0, 12)
+                setPadding(48, 24, 48, 24)
             }
-            val etCode = EditText(this).apply {
-                hint = "邀请码（留空不修改）"
-                setText(group["invite_code"]?.toString() ?: "")
-                setPadding(0, 12, 0, 12)
-            }
-            container.addView(etName)
-            container.addView(etCode)
-
-            val dialog = AlertDialog.Builder(this)
-                .setTitle("修改家庭组信息")
-                .setView(container)
-                .setPositiveButton("保存") { _, _ ->
-                    val newName = etName.text.toString().trim()
-                    val newCode = etCode.text.toString().trim()
-                    if (newName.isEmpty()) { Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                    if (newCode.isNotEmpty() && (newCode.length != 6 || !newCode.all { it.isLetterOrDigit() })) {
-                        Toast.makeText(this, "邀请码必须为6位字母或数字", Toast.LENGTH_SHORT).show(); return@setPositiveButton
-                    }
-                    lifecycleScope.launch {
-                        try {
-                            val codeToUpdate = newCode.ifEmpty { null }
-                            SupabaseUtil.updateFamilyGroup(familyId, newName, codeToUpdate)
-                            loadMyFamilyGroups()
-                            Toast.makeText(this@MainActivity, "修改成功", Toast.LENGTH_SHORT).show()
-                        } catch (e: Exception) {
-                            Toast.makeText(this@MainActivity, "修改失败：${e.message}", Toast.LENGTH_SHORT).show()
-                        }
+            showSmoothInputDialog("修改家庭组信息", input, "保存") {
+                val newName = input.text.toString().trim()
+                if (newName.isEmpty()) { Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show(); return@showSmoothInputDialog }
+                lifecycleScope.launch {
+                    try {
+                        SupabaseUtil.updateFamilyGroup(familyId, newName)
+                        loadMyFamilyGroups()
+                        Toast.makeText(this@MainActivity, "修改成功", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@MainActivity, "修改失败：${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
-                .setNegativeButton("取消", null)
-                .create()
-            dialog.window?.attributes?.windowAnimations = R.style.DialogAnimation
-            dialog.show()
+            }
         }
     }
+
 
     private fun showSmoothDialog(title: String, message: String, positiveBtn: String = "确定", onPositive: (() -> Unit)? = null) {
         val dialog = AlertDialog.Builder(this)

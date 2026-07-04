@@ -132,7 +132,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="使用邀请码加入相册"
+                        android:text="使用手机号加入相册"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -273,7 +273,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
-                android:text="使用邀请码加入"
+                android:text="手机号登录"
                 android:textColor="@color/text_primary"
                 android:textSize="24sp"
                 android:textStyle="bold" />
@@ -282,7 +282,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                android:text="输入家人分享的邀请码，即可查看相册"
+                android:text="输入手机号，即可查看家庭相册"
                 android:textColor="@color/text_secondary"
                 android:textSize="14sp" />
 
@@ -301,27 +301,25 @@
                     android:padding="20dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilInviteCode"
+                        android:id="@+id/tilPhone"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="14dp"
-                        android:hint="邀请码"
+                        android:hint="手机号"
                         app:boxCornerRadiusBottomEnd="12dp"
                         app:boxCornerRadiusBottomStart="12dp"
                         app:boxCornerRadiusTopEnd="12dp"
                         app:boxCornerRadiusTopStart="12dp"
-                        app:startIconDrawable="@android:drawable/ic_menu_sort_by_size">
+                        app:startIconDrawable="@android:drawable/ic_menu_call">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etInviteCode"
+                            android:id="@+id/etPhone"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:inputType="textCapCharacters"
-                            android:letterSpacing="0.3"
-                            android:maxLength="6"
-                            android:textSize="18sp"
-                            android:textStyle="bold" />
+                            android:inputType="phone"
+                            android:maxLength="11"
+                            android:textSize="16sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -329,7 +327,7 @@
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="您的昵称"
+                        android:hint="昵称（选填，默认为手机号）"
                         app:boxCornerRadiusBottomEnd="12dp"
                         app:boxCornerRadiusBottomStart="12dp"
                         app:boxCornerRadiusTopEnd="12dp"
@@ -351,7 +349,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
                 android:layout_marginBottom="12dp"
-                android:text="加入相册"
+                android:text="登录"
                 android:textSize="16sp"
                 app:backgroundTint="@color/accent"
                 app:cornerRadius="12dp"

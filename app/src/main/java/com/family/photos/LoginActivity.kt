@@ -65,17 +65,13 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnMemberLogin.setOnClickListener {
-            val code = binding.etInviteCode.text.toString().trim().uppercase()
+            val phone = binding.etPhone.text.toString().trim()
             val name = binding.etMemberName.text.toString().trim()
-            if (code.length != 6 || !code.all { it.isLetterOrDigit() }) {
-                Toast.makeText(this, "邀请码为6位字母或数字", Toast.LENGTH_SHORT).show()
+            if (phone.length < 11 || !phone.all { it.isDigit() }) {
+                Toast.makeText(this, "请输入11位手机号", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            if (name.isEmpty()) {
-                Toast.makeText(this, "请输入昵称", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            doMemberLogin(code, name)
+            doMemberLogin(phone, name)
         }
     }
 
@@ -125,17 +121,17 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    private fun doMemberLogin(code: String, displayName: String) {
+    private fun doMemberLogin(phone: String, displayName: String) {
         binding.btnMemberLogin.isEnabled = false
         binding.progressBar.visibility = View.VISIBLE
 
         lifecycleScope.launch {
             try {
-                val familyGroup = SupabaseUtil.inviteCodeLogin(code, displayName)
-                val intent = Intent(this@LoginActivity, MainActivity::class.java).apply {
-                    putExtra("family_id", familyGroup["id"]?.toString() ?: "")
-                    putExtra("family_name", familyGroup["name"]?.toString() ?: "")
-                    putExtra("invite_code", code)
+                val result = SupabaseUtil.phoneLogin(phone, displayName)
+                val intent = Intent(this@LoginActivity, MainActivity::class.java)
+                if (result.isNotEmpty()) {
+                    intent.putExtra("family_id", result["id"]?.toString() ?: "")
+                    intent.putExtra("family_name", result["name"]?.toString() ?: "")
                 }
                 startActivity(intent)
                 overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out)

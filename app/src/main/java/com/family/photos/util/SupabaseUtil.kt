@@ -137,12 +137,21 @@ object SupabaseUtil {
     suspend fun updateHeartbeat(uid: String) {
         withContext(Dispatchers.IO) {
             try {
-                val body = gson.toJson(mapOf("last_active_at" to java.time.Instant.now().toString()))
+                val now = java.time.Instant.now().toString()
+                val body = gson.toJson(mapOf("user_id" to uid, "last_active_at" to now))
                 val request = buildRequest("rest/v1/user_profiles?user_id=eq.$uid")
                     .patch(body.toRequestBody("application/json".toMediaType()))
                     .header("Prefer", "return=minimal")
                     .build()
-                client.newCall(request).execute()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful || response.body?.string()?.contains("\"count\":0") == true) {
+                    val createBody = gson.toJson(mapOf("user_id" to uid, "display_name" to "用户", "last_active_at" to now))
+                    val createRequest = buildRequest("rest/v1/user_profiles")
+                        .post(createBody.toRequestBody("application/json".toMediaType()))
+                        .header("Prefer", "return=minimal")
+                        .build()
+                    client.newCall(createRequest).execute()
+                }
             } catch (_: Exception) {}
         }
     }

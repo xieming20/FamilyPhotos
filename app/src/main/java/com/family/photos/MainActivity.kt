@@ -428,6 +428,7 @@ class MainActivity : AppCompatActivity() {
                 val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
                 val tv = view.findViewById<TextView>(android.R.id.text1)
                 tv.text = labels[position]
+                tv.textSize = 14f
                 if (position < icons.size) {
                     tv.setCompoundDrawablesWithIntrinsicBounds(icons[position], 0, 0, 0)
                     tv.compoundDrawablePadding = 24
@@ -580,6 +581,7 @@ class MainActivity : AppCompatActivity() {
                     val view = convertView ?: layoutInflater.inflate(android.R.layout.select_dialog_item, parent, false)
                     val tv = view.findViewById<TextView>(android.R.id.text1)
                     tv.text = items[position]
+                    tv.textSize = 14f
                     tv.setCompoundDrawablesWithIntrinsicBounds(android.R.drawable.ic_menu_myplaces, 0, 0, 0)
                     tv.compoundDrawablePadding = 24
                     return view
@@ -588,7 +590,7 @@ class MainActivity : AppCompatActivity() {
 
             val addBtn = com.google.android.material.button.MaterialButton(this@MainActivity).apply {
                 text = "  通过手机号添加成员"
-                textSize = 14f
+                textSize = 12f
                 setTextColor(resources.getColor(R.color.primary, null))
                 setIconResource(android.R.drawable.ic_menu_add)
                 iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
@@ -673,7 +675,7 @@ class MainActivity : AppCompatActivity() {
         }
         val btnEditName = com.google.android.material.button.MaterialButton(this).apply {
             text = "  修改昵称"
-            textSize = 15f
+            textSize = 13f
             setTextColor(resources.getColor(R.color.primary, null))
             setIconResource(android.R.drawable.ic_menu_edit)
             iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START
@@ -687,7 +689,7 @@ class MainActivity : AppCompatActivity() {
         }
         val btnRemove = com.google.android.material.button.MaterialButton(this).apply {
             text = "  移除成员"
-            textSize = 15f
+            textSize = 13f
             setTextColor(resources.getColor(R.color.accent, null))
             setIconResource(android.R.drawable.ic_menu_delete)
             iconGravity = com.google.android.material.button.MaterialButton.ICON_GRAVITY_TEXT_START

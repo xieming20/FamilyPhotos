@@ -480,10 +480,9 @@ object SupabaseUtil {
             val uid = currentUserId()
             if (uid.isEmpty()) throw Exception("登录异常，请重试")
 
-            val familyId = getMyFamilyId(uid) ?: ""
-            if (familyId.isNotEmpty()) {
-                val family = getFamilyGroup(familyId)
-                return@withContext family
+            val groups = getMyFamilyGroups(uid)
+            if (groups.isNotEmpty()) {
+                return@withContext groups[0]
             }
 
             emptyMap<String, Any?>()

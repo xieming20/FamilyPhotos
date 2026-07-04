@@ -433,8 +433,7 @@ object SupabaseUtil {
     suspend fun phoneLogin(phone: String, displayName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
             val name = displayName.ifEmpty { phone }
-            val phoneHash = kotlin.math.abs(phone.hashCode()).toString()
-            val email = "ph${phoneHash}@phone.fm"
+            val email = "ph${phone}@phone.fm"
             val password = "Ph${phone}!"
 
             var loggedIn = false
@@ -468,7 +467,7 @@ object SupabaseUtil {
                 val uid = currentUserId()
                 val profileBody = gson.toJson(mapOf(
                     "user_id" to uid, "display_name" to name,
-                    "email" to email, "phone" to phone
+                    "email" to email
                 ))
                 val profileRequest = buildRequest("rest/v1/user_profiles")
                     .post(profileBody.toRequestBody("application/json".toMediaType()))
@@ -491,14 +490,13 @@ object SupabaseUtil {
 
     suspend fun addMemberByPhone(familyId: String, phone: String): String {
         return withContext(Dispatchers.IO) {
-            val phoneHash = kotlin.math.abs(phone.hashCode()).toString()
-            val email = "ph${phoneHash}@phone.fm"
+            val email = "ph${phone}@phone.fm"
             val password = "Ph${phone}!"
 
             var memberId = ""
             var memberName = phone
 
-            val profileRequest = buildPublicRequest("rest/v1/user_profiles?email=eq.$email&limit=1")
+            val profileRequest = buildPublicRequest("rest/v1/user_profiles?email=eq.ph${phone}@phone.fm&limit=1")
                 .get().build()
             val profileResponse = client.newCall(profileRequest).execute()
             val profileBody = profileResponse.body?.string() ?: throw Exception("查询用户失败")
@@ -531,7 +529,7 @@ object SupabaseUtil {
 
                 val profileCreateBody = gson.toJson(mapOf(
                     "user_id" to memberId, "display_name" to phone,
-                    "email" to email, "phone" to phone, "family_id" to familyId
+                    "email" to email, "family_id" to familyId
                 ))
                 val profileCreateRequest = buildRequest("rest/v1/user_profiles")
                     .post(profileCreateBody.toRequestBody("application/json".toMediaType()))

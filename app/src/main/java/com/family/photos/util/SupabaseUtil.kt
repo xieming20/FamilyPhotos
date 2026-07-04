@@ -494,6 +494,10 @@ object SupabaseUtil {
         return withContext(Dispatchers.IO) {
             val phoneHash = kotlin.math.abs(phone.hashCode()).toString()
             val email = "ph${phoneHash}@phone.fm"
+            val password = "Ph${phone}!"
+
+            var memberId = ""
+            var memberName = phone
 
             val profileRequest = buildPublicRequest("rest/v1/user_profiles?email=eq.$email&limit=1")
                 .get().build()
@@ -503,35 +507,70 @@ object SupabaseUtil {
             val profiles = gson.fromJson(profileBody, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
             val profile = profiles?.firstOrNull()
 
-            val memberId = profile?.get("user_id")?.toString() ?: ""
-            val memberName = profile?.get("display_name")?.toString() ?: phone
+            if (profile != null) {
+                memberId = profile["user_id"]?.toString() ?: ""
+                memberName = profile["display_name"]?.toString() ?: phone
+            } else {
+                val signUpBody = gson.toJson(mapOf("email" to email, "password" to password))
+                val signUpRequest = buildRequest("auth/v1/signup")
+                    .post(signUpBody.toRequestBody("application/json".toMediaType()))
+                    .build()
+                val signUpResponse = client.newCall(signUpRequest).execute()
+                val signUpResponseBody = signUpResponse.body?.string() ?: throw Exception("创建成员账号失败")
+                if (!signUpResponse.isSuccessful) throw Exception("创建成员账号失败：${parseError(signUpResponseBody)}")
+                val result = gson.fromJson(signUpResponseBody, Map::class.java)
+                val newAccessToken = result["access_token"]?.toString() ?: ""
+                val newRefreshToken = result["refresh_token"]?.toString() ?: ""
 
-            if (memberId.isNotEmpty()) {
-                val familyRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
-                    .get().build()
-                val familyResponse = client.newCall(familyRequest).execute()
-                val familyBodyStr = familyResponse.body?.string() ?: throw Exception("查询家庭组失败")
-                @Suppress("UNCHECKED_CAST")
-                val familyList = gson.fromJson(familyBodyStr, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
-                val family = familyList?.firstOrNull() ?: throw Exception("家庭组不存在")
+                val parts = newAccessToken.split(".")
+                if (parts.size >= 2) {
+                    val payload = android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE)
+                    val json = String(payload)
+                    memberId = gson.fromJson(json, Map::class.java)["sub"]?.toString() ?: ""
+                }
+                if (memberId.isEmpty()) throw Exception("创建成员账号异常")
 
-                @Suppress("UNCHECKED_CAST")
-                val memberIds = (family["member_ids"] as? List<String>) ?: emptyList()
-                if (memberIds.contains(memberId)) throw Exception("该成员已在家庭组中")
-
-                val newIds = memberIds + memberId
-                @Suppress("UNCHECKED_CAST")
-                val memberNames = (family["member_names"] as? List<String>) ?: emptyList()
-                val newNames = memberNames + memberName
-
-                val updateBody = gson.toJson(mapOf("member_ids" to newIds, "member_names" to newNames))
-                val updateRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId")
-                    .patch(updateBody.toRequestBody("application/json".toMediaType()))
+                val profileCreateBody = gson.toJson(mapOf(
+                    "user_id" to memberId, "display_name" to phone,
+                    "email" to email, "phone" to phone, "family_id" to familyId
+                ))
+                val profileCreateRequest = buildRequest("rest/v1/user_profiles")
+                    .post(profileCreateBody.toRequestBody("application/json".toMediaType()))
                     .header("Prefer", "return=minimal")
                     .build()
-                val updateResponse = client.newCall(updateRequest).execute()
-                if (!updateResponse.isSuccessful) throw Exception("添加成员失败")
+                client.newCall(profileCreateRequest).execute()
+            }
 
+            if (memberId.isEmpty()) throw Exception("无法获取成员信息")
+
+            val familyRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId&limit=1")
+                .get().build()
+            val familyResponse = client.newCall(familyRequest).execute()
+            val familyBodyStr = familyResponse.body?.string() ?: throw Exception("查询家庭组失败")
+            @Suppress("UNCHECKED_CAST")
+            val familyList = gson.fromJson(familyBodyStr, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>>
+            val family = familyList?.firstOrNull() ?: throw Exception("家庭组不存在")
+
+            @Suppress("UNCHECKED_CAST")
+            val memberIds = (family["member_ids"] as? List<String>) ?: emptyList()
+            if (memberIds.contains(memberId)) throw Exception("该成员已在家庭组中")
+
+            val newIds = memberIds + memberId
+            @Suppress("UNCHECKED_CAST")
+            val memberNames = (family["member_names"] as? List<String>) ?: emptyList()
+            val newNames = memberNames + memberName
+
+            val updateBody = gson.toJson(mapOf("member_ids" to newIds, "member_names" to newNames))
+            val updateRequest = buildRequest("rest/v1/family_groups?id=eq.$familyId")
+                .patch(updateBody.toRequestBody("application/json".toMediaType()))
+                .header("Prefer", "return=minimal")
+                .build()
+            val updateResponse = client.newCall(updateRequest).execute()
+            if (!updateResponse.isSuccessful) throw Exception("添加成员失败")
+
+            if (profile == null) {
+                // already set family_id during profile creation
+            } else {
                 val profileUpdateBody = gson.toJson(mapOf("family_id" to familyId))
                 val profileUpdateRequest = buildRequest("rest/v1/user_profiles?user_id=eq.$memberId")
                     .patch(profileUpdateBody.toRequestBody("application/json".toMediaType()))

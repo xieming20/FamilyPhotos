@@ -12,8 +12,9 @@ BUILD_GRADLE="$PROJECT_DIR/app/build.gradle.kts"
 AAPT="$ANDROID_HOME/build-tools/34.0.0/aapt"
 APKSIGNER="$ANDROID_HOME/build-tools/34.0.0/apksigner"
 ZIPALIGN="$ANDROID_HOME/build-tools/34.0.0/zipalign"
-KEYSTORE="$PROJECT_DIR/app/release.jks"
+KEYSTORE="$HOME/.android/debug.keystore"
 KEYSTORE_PASS="android"
+KEY_ALIAS="androiddebugkey"
 
 echo "========================================"
 echo "  时光相册 一键部署脚本"
@@ -44,7 +45,7 @@ fi
 echo "  签名 APK..."
 ALIGNED_APK="$PROJECT_DIR/app/build/outputs/apk/release/app-aligned.apk"
 $ZIPALIGN -p 4 "$UNSIGNED_APK" "$ALIGNED_APK" 2>&1
-JAVA_HOME=$JAVA_HOME $APKSIGNER sign --ks "$KEYSTORE" --ks-key-alias release --ks-pass "pass:$KEYSTORE_PASS" --key-pass "pass:$KEYSTORE_PASS" --out "$APK_PATH" "$ALIGNED_APK" 2>&1
+JAVA_HOME=$JAVA_HOME $APKSIGNER sign --ks "$KEYSTORE" --ks-key-alias "$KEY_ALIAS" --ks-pass "pass:$KEYSTORE_PASS" --key-pass "pass:$KEYSTORE_PASS" --out "$APK_PATH" "$ALIGNED_APK" 2>&1
 rm -f "$ALIGNED_APK"
 
 if [ ! -f "$APK_PATH" ]; then

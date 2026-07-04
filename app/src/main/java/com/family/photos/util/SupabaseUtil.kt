@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,15 +28,19 @@ object SupabaseUtil {
         .connectTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
+        .addInterceptor(AuthRefreshInterceptor())
         .build()
 
     private val gson = Gson()
     private var accessToken: String = ""
+    private var refreshToken: String = ""
     private var prefs: SharedPreferences? = null
+
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         accessToken = prefs?.getString(KEY_ACCESS_TOKEN, "") ?: ""
+        refreshToken = prefs?.getString(KEY_REFRESH_TOKEN, "") ?: ""
     }
 
     fun isSignedIn(): Boolean = accessToken.isNotEmpty()
@@ -102,18 +107,20 @@ object SupabaseUtil {
 
     fun signOut() {
         accessToken = ""
+        refreshToken = ""
         prefs?.edit()?.remove(KEY_ACCESS_TOKEN)?.remove(KEY_REFRESH_TOKEN)?.apply()
     }
 
     private fun saveSession(result: Map<*, *>) {
         accessToken = result["access_token"]?.toString() ?: ""
-        val refreshToken = result["refresh_token"]?.toString() ?: ""
+        refreshToken = result["refresh_token"]?.toString() ?: refreshToken
         prefs?.edit()?.apply {
             putString(KEY_ACCESS_TOKEN, accessToken)
             putString(KEY_REFRESH_TOKEN, refreshToken)
             apply()
         }
     }
+
 
     suspend fun getUserProfile(uid: String): Map<String, Any?>? {
         return withContext(Dispatchers.IO) {
@@ -665,6 +672,54 @@ object SupabaseUtil {
             } catch (e: Exception) {
                 throw e
             }
+        }
+    }
+
+    private fun syncRefreshToken(): Boolean {
+        if (refreshToken.isEmpty()) return false
+        try {
+            val body = gson.toJson(mapOf("refresh_token" to refreshToken))
+            val request = Request.Builder()
+                .url("$SUPABASE_URL/auth/v1/token?grant_type=refresh_token")
+                .header("apikey", SUPABASE_KEY)
+                .header("Authorization", "Bearer $SUPABASE_KEY")
+                .header("Content-Type", "application/json")
+                .post(body.toRequestBody("application/json".toMediaType()))
+                .build()
+            val response = OkHttpClient.Builder().build().newCall(request).execute()
+            if (!response.isSuccessful) return false
+            val responseBody = response.body?.string() ?: return false
+            val result = gson.fromJson(responseBody, Map::class.java)
+            val newAccessToken = result["access_token"]?.toString() ?: return false
+            val newRefreshToken = result["refresh_token"]?.toString() ?: refreshToken
+            accessToken = newAccessToken
+            refreshToken = newRefreshToken
+            prefs?.edit()?.apply {
+                putString(KEY_ACCESS_TOKEN, accessToken)
+                putString(KEY_REFRESH_TOKEN, refreshToken)
+                apply()
+            }
+            return true
+        } catch (_: Exception) { return false }
+    }
+
+    private class AuthRefreshInterceptor : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
+            val request = chain.request()
+            val response = chain.proceed(request)
+            if (response.code == 401) {
+                val authHeader = request.header("Authorization") ?: ""
+                if (authHeader.contains(SUPABASE_KEY) || authHeader.isEmpty()) return response
+                response.close()
+                val refreshed = syncRefreshToken()
+                if (refreshed) {
+                    val newRequest = request.newBuilder()
+                        .header("Authorization", "Bearer ${accessToken}")
+                        .build()
+                    return chain.proceed(newRequest)
+                }
+            }
+            return response
         }
     }
 }

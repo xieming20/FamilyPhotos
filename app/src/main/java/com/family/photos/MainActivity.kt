@@ -107,6 +107,9 @@ class MainActivity : AppCompatActivity() {
         if (uid.isEmpty()) return
         lifecycleScope.launch {
             try {
+                SupabaseUtil.updateHeartbeat(uid)
+            } catch (_: Exception) {}
+            try {
                 val profile = SupabaseUtil.getUserProfile(uid)
                 if (profile != null) {
                     binding.tvWelcome.text = "欢迎，${profile["display_name"]}"
@@ -547,19 +550,26 @@ class MainActivity : AppCompatActivity() {
     private var memberManageDialog: AlertDialog? = null
 
     private fun showMemberManage() {
-        currentFamilyGroup?.let { group ->
-            @Suppress("UNCHECKED_CAST")
-            val memberIds = (group["member_ids"] as? List<String>) ?: emptyList()
-            @Suppress("UNCHECKED_CAST")
-            val memberNames = (group["member_names"] as? List<String>) ?: emptyList()
-            val uid = SupabaseUtil.currentUserId()
-            val creatorId = group["creator_id"]?.toString() ?: ""
+        val group = currentFamilyGroup ?: return
+        @Suppress("UNCHECKED_CAST")
+        val memberIds = (group["member_ids"] as? List<String>) ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val memberNames = (group["member_names"] as? List<String>) ?: emptyList()
+        val uid = SupabaseUtil.currentUserId()
+        val creatorId = group["creator_id"]?.toString() ?: ""
+
+        lifecycleScope.launch {
+            val statuses = try { SupabaseUtil.getMemberStatuses(memberIds) } catch (_: Exception) { emptyMap() }
+            val now = System.currentTimeMillis()
 
             val items = memberNames.mapIndexed { i, name ->
                 val id = memberIds.getOrNull(i) ?: ""
                 val badge = if (id == uid) "（我）" else ""
                 val role = if (id == creatorId) " [管理员]" else ""
-                "$name$badge$role"
+                val lastActive = statuses[id] ?: 0L
+                val isOnline = (now - lastActive) < 5 * 60 * 1000 && lastActive > 0
+                val statusTag = if (isOnline) " 🟢在线" else " ⚪离线"
+                "$name$badge$role$statusTag"
             }
 
             val listAdapter = object : android.widget.BaseAdapter() {
@@ -576,7 +586,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val addBtn = com.google.android.material.button.MaterialButton(this).apply {
+            val addBtn = com.google.android.material.button.MaterialButton(this@MainActivity).apply {
                 text = "  通过手机号添加成员"
                 textSize = 14f
                 setTextColor(resources.getColor(R.color.primary, null))
@@ -604,7 +614,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             memberManageDialog?.dismiss()
-            val dialog = AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this@MainActivity)
                 .setTitle("成员管理（${items.size}人）")
                 .setView(container)
                 .setNegativeButton("关闭", null)
@@ -616,7 +626,7 @@ class MainActivity : AppCompatActivity() {
                 val memberId = memberIds.getOrNull(which) ?: return@setOnItemClickListener
                 val memberName = memberNames.getOrNull(which) ?: return@setOnItemClickListener
                 if (memberId == creatorId) {
-                    Toast.makeText(this, "不能操作管理员", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "不能操作管理员", Toast.LENGTH_SHORT).show()
                     return@setOnItemClickListener
                 }
                 showMemberActions(memberId, memberName)

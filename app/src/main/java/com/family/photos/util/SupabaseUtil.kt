@@ -134,6 +134,44 @@ object SupabaseUtil {
         }
     }
 
+    suspend fun updateHeartbeat(uid: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                val body = gson.toJson(mapOf("last_active_at" to java.time.Instant.now().toString()))
+                val request = buildRequest("rest/v1/user_profiles?user_id=eq.$uid")
+                    .patch(body.toRequestBody("application/json".toMediaType()))
+                    .header("Prefer", "return=minimal")
+                    .build()
+                client.newCall(request).execute()
+            } catch (_: Exception) {}
+        }
+    }
+
+    suspend fun getMemberStatuses(memberIds: List<String>): Map<String, Long> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val idsParam = memberIds.joinToString(",") { "\"$it\"" }
+                val encodedIds = java.net.URLEncoder.encode("[$idsParam]", "UTF-8")
+                val request = buildPublicRequest("rest/v1/user_profiles?user_id=in.$encodedIds&select=user_id,last_active_at")
+                    .get().build()
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: return@withContext emptyMap()
+                @Suppress("UNCHECKED_CAST")
+                val list = gson.fromJson(body, object : TypeToken<List<Map<String, Any?>>>() {}.type) as? List<Map<String, Any?>> ?: return@withContext emptyMap()
+                val result = mutableMapOf<String, Long>()
+                for (item in list) {
+                    val userId = item["user_id"]?.toString() ?: continue
+                    val lastActive = item["last_active_at"]?.toString() ?: ""
+                    val timestamp = try {
+                        java.time.Instant.parse(lastActive).toEpochMilli()
+                    } catch (_: Exception) { 0L }
+                    result[userId] = timestamp
+                }
+                result
+            } catch (_: Exception) { emptyMap() }
+        }
+    }
+
     suspend fun createFamilyGroup(name: String, creatorId: String, creatorName: String): Map<String, Any?> {
         return withContext(Dispatchers.IO) {
             val body = gson.toJson(mapOf(

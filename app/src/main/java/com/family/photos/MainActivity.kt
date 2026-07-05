@@ -86,7 +86,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.familySelectorArea.setOnClickListener {
             if (familyGroups.size > 1) showFamilySwitcherDialog()
-            else if (familyGroups.isEmpty()) showFamilyDialog()
+            else if (familyGroups.isNotEmpty()) showFamilyInfo()
+            else showFamilyDialog()
         }
 
         binding.btnLogout.setOnClickListener {
@@ -157,7 +158,7 @@ class MainActivity : AppCompatActivity() {
         binding.tvFamilyName.text = group["name"]?.toString() ?: ""
         binding.tvFamilyMemberCount.text = "${names.size}位成员"
         binding.tvAdminBadge.visibility = if (isCreator) View.VISIBLE else View.GONE
-        binding.ivDropdown.visibility = if (familyGroups.size > 1) View.VISIBLE else View.GONE
+        binding.ivDropdown.visibility = View.VISIBLE
         loadPhotoCount(familyId)
     }
 
@@ -406,6 +407,7 @@ class MainActivity : AppCompatActivity() {
             val base = mutableListOf(
                 Triple("查看家庭信息", android.R.drawable.ic_menu_info_details, 0),
                 Triple("邀请家人加入", android.R.drawable.ic_menu_share, 1),
+                Triple("切换家庭组", android.R.drawable.ic_menu_set_as, 7),
                 Triple("创建新家庭组", android.R.drawable.ic_menu_add, 2),
                 Triple("加入其他家庭组", android.R.drawable.ic_menu_send, 3)
             )
@@ -461,6 +463,7 @@ class MainActivity : AppCompatActivity() {
                     4 -> showDeleteFamilyDialog()
                     5 -> showMemberManage()
                     6 -> showEditFamilyInfo()
+                    7 -> if (familyGroups.size > 1) showFamilySwitcherDialog() else Toast.makeText(this, "当前只在一个家庭组中", Toast.LENGTH_SHORT).show()
                 }
             }
         }

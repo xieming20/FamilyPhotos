@@ -134,10 +134,10 @@
                         android:id="@+id/ivDropdown"
                         android:layout_width="20dp"
                         android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
                         android:contentDescription="切换"
-                        android:src="@android:drawable/arrow_down_float"
-                        app:tint="@color/text_hint"
-                        android:visibility="gone" />
+                        android:src="@android:drawable/ic_menu_more"
+                        app:tint="@color/text_hint" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
